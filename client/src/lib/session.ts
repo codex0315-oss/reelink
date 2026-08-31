@@ -53,9 +53,14 @@ type Listener = () => void
 const expiryListeners = new Set<Listener>()
 
 /** AuthContext subscribes so React state clears when a renewal finally fails. */
-export function onSessionExpired(listener: Listener) {
+export function onSessionExpired(listener: Listener): () => void {
   expiryListeners.add(listener)
-  return () => expiryListeners.delete(listener)
+  // Braces, not a concise body: Set.delete returns a boolean, and this is used
+  // directly as a useEffect cleanup, which must return void or another cleanup.
+  // Returning a boolean there is a type error that fails the production build.
+  return () => {
+    expiryListeners.delete(listener)
+  }
 }
 
 function sessionExpired() {
