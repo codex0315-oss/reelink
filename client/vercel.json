@@ -1,27 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
-  "//ignoreCommand": "Skips the build when the last commit changed nothing inside client/. This project shares a repository with the NestJS server, and without this every server-only commit would rebuild and redeploy an identical site. Exit 0 means skip; a non-zero exit (files did change) means build. Vercel's Root Directory setting must be set to `client` for the `.` here to mean the client folder.",
-  "rewrites": [
-    {
-      "comment": "Every path serves index.html so React Router can resolve it in the browser. Without this, opening /dashboard directly — or refreshing while on it — returns a 404, because Vercel looks for a dashboard/index.html that a single-page build never produces. Real files are matched first, so hashed assets under /assets are unaffected.",
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
-      "comment": "Vite puts a content hash in every asset filename, so a given URL can never change. Caching them for a year costs nothing and a deploy invalidates them by producing new names.",
       "source": "/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "comment": "index.html must never be cached: it is the file that points at the hashed assets, so a stale copy would keep serving the previous deploy's JavaScript.",
       "source": "/index.html",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
