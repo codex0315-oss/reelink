@@ -26,10 +26,12 @@ services:
     # prisma generate must run before the build: the Nest build imports the generated
     # client, and node_modules is rebuilt from scratch on every deploy.
     buildCommand: npm ci && npx prisma generate && npm run build
-    # Migrations run before the new instance takes traffic, not during the build —
-    # the build step has no database attached.
-    preDeployCommand: npx prisma migrate deploy
-    startCommand: npm run start:prod
+    # Migrations run at startup rather than in a pre-deploy step, because Render does
+    # not offer pre-deploy commands on the free plan. `migrate deploy` is idempotent —
+    # it applies only what is missing — so running it on every boot is safe. It is also
+    # safe here because the free plan runs a single instance; with several, they would
+    # race and this would need to move back to a pre-deploy step.
+    startCommand: npx prisma migrate deploy && npm run start:prod
     healthCheckPath: /listings
     envVars:
       - key: NODE_ENV
