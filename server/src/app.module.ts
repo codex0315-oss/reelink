@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { PrismaModule } from './prisma/prisma.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ListingsModule } from './modules/listings/listings.module';
@@ -25,6 +26,7 @@ import { MailModule } from './modules/mail/mail.module';
     // Only so UserThrottlerGuard can read the caller id out of the bearer token.
     JwtModule.register({ secret: process.env.JWT_SECRET }),
     PrismaModule,
+    StorageModule,
     AuthModule,
     NotificationsModule,
     ListingsModule,

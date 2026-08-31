@@ -13,14 +13,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage, FileFilterCallback } from 'multer';
-import { extname } from 'path';
+import { memoryStorage, FileFilterCallback } from 'multer';
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
 import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { StorageService } from '../storage/storage.service';
 
 const photoFileFilter = (
   req: Request,
@@ -35,27 +35,23 @@ const photoFileFilter = (
 };
 
 /**
- * Multer takes one storage engine per request, so the destination is chosen per
- * field here rather than per interceptor.
- */
-const listingStorage = diskStorage({
-  destination: (req, file, cb) =>
-    cb(null, file.fieldname === 'panoramas' ? './uploads/panoramas' : './uploads/listings'),
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-    cb(null, unique);
-  },
-});
-
-/**
  * Panoramas are legitimately large — a 360 shot is several times the pixels of a
- * normal photo — so the cap is shared and set to the larger of the two. Without any
- * limit at all, ten unbounded files per request is a way to fill the disk.
+ * normal photo — so the cap is shared and set to the larger of the two. The limit
+ * matters more now that files are held in memory rather than streamed to disk: this
+ * bounds a single request at 16 × 15MB.
  */
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
+/**
+ * memoryStorage, not diskStorage.
+ *
+ * The bytes have to reach StorageService so they can go to object storage. Writing them
+ * to the container's filesystem first would be wasted work and, on a host that wipes
+ * that filesystem between restarts, actively wrong — which is how listing photos were
+ * being lost: the database kept the path while the file itself disappeared.
+ */
 const listingUpload = {
-  storage: listingStorage,
+  storage: memoryStorage(),
   fileFilter: photoFileFilter,
   limits: { fileSize: MAX_UPLOAD_BYTES, files: 16 },
 };
@@ -75,18 +71,21 @@ export class ListingsController {
   constructor(
     private listingsService: ListingsService,
     private jwt: JwtService,
+    private storage: StorageService,
   ) {}
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
   @UseInterceptors(FileFieldsInterceptor(LISTING_FIELDS, listingUpload))
-  create(
+  async create(
     @Req() req: { user: { userId: string } },
     @Body() dto: CreateListingDto,
     @UploadedFiles() files: UploadedListingFiles,
   ) {
-    const photoUrls = (files?.photos ?? []).map((f) => `/uploads/listings/${f.filename}`);
-    const panoramaUrls = (files?.panoramas ?? []).map((f) => `/uploads/panoramas/${f.filename}`);
+    // Stored before the row is written, so a storage failure means no listing rather
+    // than a listing row pointing at files that were never saved.
+    const photoUrls = await this.storage.saveAll('listings', files?.photos);
+    const panoramaUrls = await this.storage.saveAll('panoramas', files?.panoramas);
     return this.listingsService.create(req.user.userId, dto, photoUrls, panoramaUrls);
   }
 
@@ -130,21 +129,19 @@ export class ListingsController {
     }
   }
 
-    @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
   @UseInterceptors(FileFieldsInterceptor(LISTING_FIELDS, listingUpload))
-  update(
+  async update(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: UpdateListingDto,
     @UploadedFiles() files: UploadedListingFiles,
   ) {
-    const newPhotoUrls = (files?.photos ?? []).map((f) => `/uploads/listings/${f.filename}`);
+    const newPhotoUrls = await this.storage.saveAll('listings', files?.photos);
     const photoUrls = [...(dto.existingPhotoUrls ?? []), ...newPhotoUrls];
 
-    const newPanoramaUrls = (files?.panoramas ?? []).map(
-      (f) => `/uploads/panoramas/${f.filename}`,
-    );
+    const newPanoramaUrls = await this.storage.saveAll('panoramas', files?.panoramas);
     const panoramaUrls = [...(dto.existingPanoramaUrls ?? []), ...newPanoramaUrls];
 
     return this.listingsService.update(req.user.userId, id, dto, photoUrls, panoramaUrls);
