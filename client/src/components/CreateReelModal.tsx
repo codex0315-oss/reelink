@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useDismissOnBack } from '../hooks/useDismissOnBack'
 import { X, Sparkles, ImageIcon, ChevronLeft, PlayCircle, Check, Clock, Film } from 'lucide-react'
 import {
   generateReel,
@@ -36,6 +37,8 @@ const AMENITY_OPTIONS = ['Pool', 'Garage', 'Garden', 'Balcony', 'Gated', 'Furnis
 type Mode = 'choose' | 'listing' | 'ai' | 'template'
 
 export default function CreateReelModal({ token, listings, onClose, onCreated }: Props) {
+  // Device Back closes this instead of leaving the dashboard.
+  useDismissOnBack(true, onClose)
   // Skip the chooser when there is nothing to choose from.
   const [mode, setMode] = useState<Mode>(listings.length === 0 ? 'ai' : 'choose')
   const [error, setError] = useState('')

@@ -4,6 +4,16 @@ import { createTransport, type Transporter } from 'nodemailer';
 const BREVO_API = 'https://api.brevo.com/v3/smtp/email';
 const MAILERSEND_API = 'https://api.mailersend.com/v1/email';
 
+/**
+ * How long any single send may take before it is abandoned.
+ *
+ * Every send here is awaited by an HTTP handler, so an unbounded call is a request
+ * that never returns and a spinner that never stops — which is exactly what happened
+ * in production when Render blocked the SMTP port. Ten seconds is far more than a
+ * working provider needs and short enough that a broken one surfaces as an error.
+ */
+const SEND_TIMEOUT_MS = 10_000;
+
 type SendInput = {
   to: string;
   toName?: string;
@@ -92,6 +102,15 @@ export class MailService {
         // 587 is STARTTLS, so the connection begins in the clear and upgrades.
         secure: false,
         auth: { user: this.smtpLogin as string, pass: this.smtpKey as string },
+        // Without these, a blocked port does not fail — it hangs. Most hosts, Render
+        // included, drop outbound SMTP to stop spam, and the TCP connection then sits
+        // there until something upstream gives up. Verified in production: the send
+        // request never returned at all, so the UI showed "checking" indefinitely.
+        // Ten seconds is far longer than a working relay needs and short enough that a
+        // blocked one surfaces as an error the user can act on.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 15_000,
       });
 
       await this.transporter.sendMail({
@@ -150,7 +169,15 @@ export class MailService {
     subject: string,
   ): Promise<boolean> {
     try {
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+      // Bounded, so a provider that stops responding cannot hold the request open.
+      // Sending is always awaited by an HTTP handler here, and a hung call means a
+      // spinner that never resolves rather than an error the user can act on.
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+      });
 
       if (!res.ok) {
         // The body carries the real reason — an unverified sender looks identical to

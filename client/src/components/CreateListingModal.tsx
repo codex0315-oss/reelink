@@ -1,5 +1,6 @@
 import { assetUrl } from '../lib/config'
 import { useState } from 'react'
+import { useDismissOnBack } from '../hooks/useDismissOnBack'
 import { X, Plus, Compass, AlertTriangle } from 'lucide-react'
 import LocationPicker from './LocationPicker'
 import { createListing, generateDescription, updateListing } from '../lib/api'
@@ -48,6 +49,8 @@ function FacebookIcon({ className }: { className?: string }) {
 }
 
 export default function CreateListingModal({ onClose, onCreated, editListing }: Props) {
+  // Device Back closes this instead of leaving the dashboard.
+  useDismissOnBack(true, onClose)
   const { token } = useAuth()
   const isEditing = !!editListing
   const [title, setTitle] = useState(editListing?.title ?? '')

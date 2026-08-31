@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useWakingServer } from '../hooks/useWakingServer'
 import { registerAgent } from '../lib/api'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
@@ -15,9 +16,15 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, token } = useAuth()
+  const waking = useWakingServer(loading)
 
   const longEnough = password.length >= MIN_PASSWORD_LENGTH
+
+  // Browser history can land an already-signed-in user back here — pressing Back from
+  // the dashboard, for instance. Without this they see a login form and reasonably
+  // conclude they were signed out, when the session is still perfectly valid.
+  if (token) return <Navigate to="/dashboard" replace />
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -118,7 +125,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full py-3 rounded-xl bg-gold text-navy-dark font-extrabold text-sm shadow-lg shadow-gold/20 hover:bg-gold-dark hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 mt-2"
         >
-          {loading ? 'Creating account…' : 'Create account'}
+          {loading ? (waking ? 'Waking the server…' : 'Creating account…') : 'Create account'}
         </button>
 
         <p className="text-center text-[11px] text-content/30 leading-relaxed">

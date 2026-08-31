@@ -220,14 +220,14 @@ export default function LandingPage() {
                 <div className="flex flex-col sm:flex-row gap-3.5 mt-7">
                   <Link
                     to="/register"
-                    className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-gold text-navy-dark font-extrabold text-sm shadow-xl shadow-gold/25 hover:bg-gold-dark hover:-translate-y-0.5 transition-all active:scale-95"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-4 rounded-xl bg-gold text-navy-dark font-extrabold text-sm shadow-xl shadow-gold/25 hover:bg-gold-dark sm:hover:-translate-y-0.5 transition-all active:scale-95"
                   >
                     <Sparkles size={17} />
                     Create your first reel free
                   </Link>
                   <a
                     href="#showcase"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-line/5 border border-line/15 text-content font-bold text-sm hover:bg-line/10 transition-all"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-4 rounded-xl bg-line/5 border border-line/15 text-content font-bold text-sm hover:bg-line/10 transition-all"
                   >
                     See a real reel
                   </a>
