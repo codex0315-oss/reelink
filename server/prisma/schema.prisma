@@ -20,7 +20,15 @@ model User {
   avatarUrl String?
   /// Shown to buyers as a "Verified" badge. Only an admin approving a verification
   /// request sets this — it is a claim about a real licence, not a self-assigned flag.
+  ///
+  /// Deliberately NOT reused for email verification. Confirming you can read your own
+  /// inbox says nothing about being a licensed broker, and letting it set this flag
+  /// would hand the badge to anyone who clicks a link.
   isVerified Boolean  @default(false)
+
+  /// When this address was confirmed with an emailed code. Null means unconfirmed,
+  /// which today is shown in Settings but blocks nothing.
+  emailVerifiedAt DateTime?
 
   /// 'agent' for everyone who signs up; 'admin' for staff. Deliberately not settable
   /// through any API — an account is promoted with the seed script, so there is no
@@ -58,6 +66,7 @@ model User {
   reelRenders ReelRender[]
   listingViews ListingView[]
   verificationRequests VerificationRequest[]
+  emailCodes EmailVerificationCode[]
   reels     Reel[]
   chatMessages ChatMessage[]
 }
@@ -210,6 +219,37 @@ model ReelRender {
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// A one-time code emailed to confirm an address.
+///
+/// Codes are not unique across users, and deliberately so. A code is only ever checked
+/// together with the account that asked for it, so two people holding 481923 can never
+/// use each other's. Forcing global uniqueness on a six-digit space would cap the
+/// platform at a million pending verifications and would leak which codes are live —
+/// a rejected code would tell an attacker it belongs to somebody.
+///
+/// What actually protects the account is here instead: a short expiry, a hard attempt
+/// limit, and only one live code per user at a time.
+model EmailVerificationCode {
+  id         String    @id @default(uuid())
+  /// SHA-256 of the six digits. A six-digit space is small enough to reverse offline,
+  /// so this is not the defence — it just keeps the plain code out of backups and logs.
+  codeHash   String
+  /// The address the code was sent to. Checked on redemption, so a code stops working
+  /// if the user changes their email before entering it.
+  email      String
+  expiresAt  DateTime
+  /// Counts wrong guesses. At the limit the code is dead and a new one must be sent,
+  /// which is what makes six digits safe rather than merely long.
+  attempts   Int       @default(0)
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }

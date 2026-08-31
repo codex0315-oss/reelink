@@ -558,3 +558,42 @@ export async function submitVerification(token: string, licenseNumber: string) {
   }
   return res.json()
 }
+
+/* ------------------------------------------------- email verification (agent) */
+
+export type EmailVerificationStatus = {
+  email: string
+  verified: boolean
+  verifiedAt?: string | null
+  pending: { sentTo: string; expiresAt: string; attemptsLeft: number } | null
+}
+
+export async function fetchEmailVerification(token: string) {
+  const res = await apiFetch(`${API_URL}/verification/email`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load your email status')
+  return res.json() as Promise<EmailVerificationStatus>
+}
+
+/** The response never carries the code itself — only confirmation that one was sent. */
+export async function sendEmailCode(token: string) {
+  const res = await apiFetch(`${API_URL}/verification/email/send`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Could not send the code')
+  return data as { sent: boolean; email: string; expiresAt: string; message: string }
+}
+
+export async function confirmEmailCode(token: string, code: string) {
+  const res = await apiFetch(`${API_URL}/verification/email/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'That code is not valid')
+  return data as { verified: boolean; email: string; emailVerifiedAt: string }
+}

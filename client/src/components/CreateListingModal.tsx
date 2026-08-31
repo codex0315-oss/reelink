@@ -60,7 +60,9 @@ export default function CreateListingModal({ onClose, onCreated, editListing }: 
   const [customAmenity, setCustomAmenity] = useState('')
   const [latitude, setLatitude] = useState<number | null>(editListing?.latitude ?? null)
   const [longitude, setLongitude] = useState<number | null>(editListing?.longitude ?? null)
-  const [publishToFacebook, setPublishToFacebook] = useState(editListing?.publishToFacebook ?? false)
+  // Read-only while publishing is unbuilt. The value is still carried so editing a
+  // listing that was saved with it set does not silently clear the flag.
+  const [publishToFacebook] = useState(editListing?.publishToFacebook ?? false)
   const [existingPhotos, setExistingPhotos] = useState<string[]>(editListing?.photoUrls ?? [])
   const [photos, setPhotos] = useState<File[]>([])
   const [existingPanoramas, setExistingPanoramas] = useState<string[]>(
@@ -392,29 +394,38 @@ export default function CreateListingModal({ onClose, onCreated, editListing }: 
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setPublishToFacebook((p) => !p)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
-                  publishToFacebook ? 'border-[#1877F2] bg-[#1877F2]/5' : 'border-ink/15'
-                }`}
+              {/* Direct publishing is not built — nothing in the server talks to the
+                  Graph API. A toggle that flips but does nothing is worse than no
+                  toggle, so this is inert and says why. Kept visible rather than
+                  removed: it tells an agent the feature is coming, and the listing
+                  already carries the publishToFacebook column for when it lands. */}
+              <div
+                aria-disabled="true"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-ink/10 bg-ink/[0.02] cursor-not-allowed select-none"
               >
-                <div className="flex items-center gap-2.5">
-                  <FacebookIcon className="w-5 h-5 text-[#1877F2]" />
-                  <span className="text-sm font-semibold text-ink">Publish to Facebook Page</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FacebookIcon className="w-5 h-5 text-[#1877F2] opacity-40 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-ink/45">
+                        Publish to Facebook Page
+                      </span>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide bg-ink/10 text-ink/50">
+                        Coming soon
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink/40 mt-0.5">
+                      For now, export the reel and post it yourself.
+                    </p>
+                  </div>
                 </div>
-                <div
-                  className={`w-10 h-5 rounded-full transition-all relative ${
-                    publishToFacebook ? 'bg-[#1877F2]' : 'bg-ink/15'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                      publishToFacebook ? 'left-5' : 'left-0.5'
-                    }`}
-                  />
+
+                {/* Rendered off and unreachable — not a button, so it cannot be tabbed
+                    to or clicked. */}
+                <div className="w-10 h-5 rounded-full bg-ink/10 relative shrink-0">
+                  <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-ink/20" />
                 </div>
-              </button>
+              </div>
             </div>
 
             {/* ------------------------------------- numbers and choices */}

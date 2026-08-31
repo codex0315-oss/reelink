@@ -143,3 +143,45 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+/**
+ * The six-digit verification code.
+ *
+ * The code is set large and monospaced with letter-spacing because people read these
+ * off one screen and type them into another — grouping and size are what stop a 6 being
+ * read as an 8. No link and no button: there is nothing here to click, so there is
+ * nothing for a phishing lookalike to imitate.
+ */
+export function verifyEmailCode(name: string, code: string, minutes: number) {
+  const html = shell(
+    'Confirm your email',
+    [
+      p(`Hi ${escapeHtml(name)}, enter this code in Reelink to confirm your email address.`),
+      `<div style="margin:26px 0;text-align:center;">
+         <div style="display:inline-block;padding:18px 28px;border-radius:14px;background:#F6F8FB;border:1px solid #E2E8F2;">
+           <span style="font-family:'Courier New',Courier,monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:${NAVY};">${escapeHtml(code)}</span>
+         </div>
+       </div>`,
+      p(`The code expires in ${minutes} minutes and can only be used once.`),
+      p(
+        `If you didn't ask to verify this address, you can ignore this email — nothing changes on your account.`,
+      ),
+      `<p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:${MUTED};">Reelink will never ask you for this code by phone, chat or email reply.</p>`,
+    ].join(''),
+  );
+
+  const text = [
+    `Hi ${name},`,
+    ``,
+    `Your Reelink verification code is: ${code}`,
+    ``,
+    `Enter it in Settings to confirm your email address. It expires in ${minutes} minutes and works once.`,
+    ``,
+    `If you didn't ask to verify this address, ignore this email — nothing changes.`,
+    `Reelink will never ask you for this code by phone, chat or email reply.`,
+    ``,
+    `— Reelink`,
+  ].join('\n');
+
+  return { subject: `${code} is your Reelink verification code`, html, text };
+}

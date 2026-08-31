@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserThrottlerGuard } from './common/user-throttler.guard';
@@ -21,6 +22,8 @@ import { MailModule } from './modules/mail/mail.module';
     // Anything that costs money, sends mail or accepts a password tightens this with
     // @Throttle on the route itself.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+    // Only so UserThrottlerGuard can read the caller id out of the bearer token.
+    JwtModule.register({ secret: process.env.JWT_SECRET }),
     PrismaModule,
     AuthModule,
     NotificationsModule,

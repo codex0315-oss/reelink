@@ -8,7 +8,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EmailVerificationService } from './email-verification.service';
 
 /** Long enough for any PRC or DHSUD number, short enough to be a number and not an essay. */
 const MAX_LICENCE_LENGTH = 40;
@@ -23,7 +25,44 @@ const MAX_LICENCE_LENGTH = 40;
 @UseGuards(AuthGuard('jwt'))
 @Controller('verification')
 export class VerificationController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailVerification: EmailVerificationService,
+  ) {}
+
+  /* ------------------------------------------------------ email verification */
+
+  @Get('email')
+  emailStatus(@Req() req: { user: { userId: string } }) {
+    return this.emailVerification.status(req.user.userId);
+  }
+
+  /**
+   * Each send delivers a real email, so this is the one route here a stranger could
+   * use to bother someone. The service also enforces a 60-second cooldown per account;
+   * this caps it per token as well.
+   */
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Post('email/send')
+  sendEmailCode(@Req() req: { user: { userId: string } }) {
+    return this.emailVerification.send(req.user.userId);
+  }
+
+  /**
+   * Six digits is a million combinations and the service allows five guesses per code,
+   * but without a limit here an attacker could simply request code after code. This
+   * bounds the whole attack, not just one code's lifetime.
+   */
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Post('email/confirm')
+  confirmEmailCode(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { code?: string },
+  ) {
+    return this.emailVerification.confirm(req.user.userId, body?.code ?? '');
+  }
+
+  /* --------------------------------------------------- licence verification */
 
   /** The agent's latest request, so Settings can show pending/approved/rejected. */
   @Get('mine')

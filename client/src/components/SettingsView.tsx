@@ -25,6 +25,10 @@ import {
   updateNotificationPrefs,
   fetchMyVerification,
   submitVerification,
+  fetchEmailVerification,
+  sendEmailCode,
+  confirmEmailCode,
+  type EmailVerificationStatus,
 } from '../lib/api'
 import { assetUrl } from '../lib/config'
 import { LIMITS } from '../lib/limits'
@@ -569,6 +573,145 @@ function IntegrationsSection() {
   )
 }
 
+/* ----------------------------------------------------- email verification */
+
+/**
+ * Confirming the address with a six-digit code.
+ *
+ * Kept apart from the licence badge below on purpose: reading your own inbox proves
+ * you own the address, nothing more. The code is never returned by the API, so the
+ * only way through is the email itself.
+ */
+function EmailVerificationRow({ token }: { token: string }) {
+  const [status, setStatus] = useState<EmailVerificationStatus | null>(null)
+  const [entering, setEntering] = useState(false)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    fetchEmailVerification(token)
+      .then((s) => {
+        setStatus(s)
+        // A code is already waiting, so open straight into the input.
+        if (s.pending) setEntering(true)
+      })
+      .catch(() => undefined)
+  }, [token])
+
+  async function send() {
+    setBusy(true)
+    setError('')
+    setNote('')
+    try {
+      const res = await sendEmailCode(token)
+      setNote(res.message)
+      setEntering(true)
+      setStatus(await fetchEmailVerification(token))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send the code')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirm() {
+    if (code.length !== 6) return
+    setBusy(true)
+    setError('')
+    try {
+      await confirmEmailCode(token, code)
+      setStatus(await fetchEmailVerification(token))
+      setEntering(false)
+      setCode('')
+      setNote('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'That code is not valid')
+      setCode('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!status) return null
+
+  return (
+    <div className="py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-ink/50 font-semibold">Email</span>
+        {status.verified ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-emerald-500/10 text-success border border-emerald-500/25">
+            <Check size={11} />
+            Verified
+          </span>
+        ) : (
+          <span className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-ink/5 text-ink/45 border border-ink/10">
+            Unverified
+          </span>
+        )}
+      </div>
+
+      {!status.verified && (
+        <div className="mt-2">
+          {entering ? (
+            <div className="space-y-2">
+              <input
+                value={code}
+                // inputMode numeric brings up the number pad on a phone; stripping
+                // non-digits lets a pasted "123 456" work rather than silently failing.
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="6-digit code"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className={`${inputClass} text-center tracking-[0.4em] font-mono font-bold`}
+              />
+
+              {error && <p className="text-xs text-danger">{error}</p>}
+              {!error && note && <p className="text-xs text-ink/50">{note}</p>}
+              {status.pending && (
+                <p className="text-[11px] text-ink/40">
+                  {status.pending.attemptsLeft} attempt
+                  {status.pending.attemptsLeft === 1 ? '' : 's'} left on this code.
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={confirm}
+                  disabled={busy || code.length !== 6}
+                  className="flex-1 px-3 py-2 rounded-lg bg-gold text-navy-dark text-xs font-bold hover:bg-gold-dark transition-all disabled:opacity-50"
+                >
+                  {busy ? 'Checking…' : 'Confirm'}
+                </button>
+                <button
+                  onClick={send}
+                  disabled={busy}
+                  className="px-3 py-2 rounded-lg border border-ink/15 text-xs font-bold text-ink/60 disabled:opacity-50"
+                >
+                  Resend
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={send}
+                disabled={busy}
+                className="text-xs font-bold text-gold-dark hover:underline disabled:opacity-50"
+              >
+                {busy ? 'Sending…' : 'Send verification code'}
+              </button>
+              {error && <p className="text-xs text-danger mt-1">{error}</p>}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ----------------------------------------------------------- verification */
 
 /**
@@ -688,8 +831,13 @@ function AccountSummary({ user, token }: { user: User; token: string }) {
       className="flex-1 flex flex-col"
     >
       <div className="divide-y divide-ink/5">
+        {/* Two different things, so they get two rows. This one is "we emailed you a
+            code and you typed it back"; the one below is "staff checked your broker
+            licence". Sharing a label would let one imply the other. */}
+        <EmailVerificationRow token={token} />
+
         <div className="flex items-center justify-between py-3">
-          <span className="text-xs text-ink/50 font-semibold">Verification</span>
+          <span className="text-xs text-ink/50 font-semibold">Licence</span>
           {user.isVerified ? (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-emerald-500/10 text-success border border-emerald-500/25">
               <Check size={11} />

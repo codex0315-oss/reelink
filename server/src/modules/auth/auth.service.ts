@@ -77,6 +77,9 @@ export class AuthService {
     phone: true,
     avatarUrl: true,
     isVerified: true,
+    // Separate from isVerified above: this one is "we emailed you a code and you typed
+    // it back", the other is "staff checked your broker licence".
+    emailVerifiedAt: true,
     // The client uses this only to decide whether to offer the /admin link. Every admin
     // route re-checks the role server-side, so a tampered copy of this value buys
     // nothing but a link to a page that refuses to load.

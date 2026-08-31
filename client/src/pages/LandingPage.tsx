@@ -18,6 +18,10 @@ import {
   Check,
   Volume2,
   VolumeX,
+  Compass,
+  TrendingUp,
+  MapPin,
+  BadgeCheck,
 } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
 import { useTheme } from '../context/ThemeContext'
@@ -39,7 +43,7 @@ const STEPS = [
   {
     icon: ListPlus,
     title: 'List the property once',
-    body: 'Photos, price, location on the map, amenities. The details you would type into a Facebook post anyway.',
+    body: 'Photos, price, location on the map, amenities — plus optional 360° shots for a walkthrough buyers can look around in.',
   },
   {
     icon: Sparkles,
@@ -49,19 +53,31 @@ const STEPS = [
   {
     icon: Clapperboard,
     title: 'Your reel renders itself',
-    body: 'Photos become a 1080×1920 vertical video with motion, price and status overlays, and an AI voiceover.',
+    body: 'Photos become a 1080×1920 vertical video with motion, on-screen captions, and price and status overlays. Four templates to pick from.',
   },
   {
     icon: Download,
-    title: 'Export and post',
-    body: 'Download the finished MP4, ready for Facebook Reels. One-click publishing is on the way.',
+    title: 'Post it, and get replies',
+    body: 'Export the MP4 for Facebook Reels. Your listing is also live on Reelink, where buyers can tour it and message you directly.',
   },
 ]
 
 const FAQS = [
   {
     q: 'Do I need any video editing skills?',
-    a: 'None. You upload photos and fill in the property details. Reelink handles the motion, the text overlays, the narration and the export — there is no timeline to edit.',
+    a: 'None. You upload photos and fill in the property details. Reelink handles the motion, the captions, the text overlays and the export — there is no timeline to edit.',
+  },
+  {
+    q: 'What is a 360° virtual tour, and do I need special equipment?',
+    a: 'It is a photo buyers can look around inside, instead of scrolling through flat images. Your phone can shoot one: use Panorama mode, stand in the middle of the room and turn slowly. One per room is plenty. It is optional — listings without them work normally.',
+  },
+  {
+    q: 'Can buyers message me directly?',
+    a: 'Yes. Every listing has a Message button, and replies arrive in Reelink with read receipts so you know they landed. Buyers need a free account to start a conversation, which keeps the enquiries real.',
+  },
+  {
+    q: 'Can I tell whether anyone is looking at my listings?',
+    a: 'Your dashboard shows how many people opened each property and whether that is rising or falling week to week. Your own visits are not counted, so the number means genuine interest.',
   },
   {
     q: 'How long does one reel take?',
@@ -77,7 +93,7 @@ const FAQS = [
   },
   {
     q: 'Do I need to be a licensed broker to sign up?',
-    a: 'No. Anyone can create an account, browse properties and publish listings. An optional verification badge for licensed professionals is coming later.',
+    a: 'No. Anyone can create an account, browse properties and publish listings. If you are licensed, you can submit your PRC or DHSUD number from Settings and get a verified badge once our team has checked it — buyers see it on your listings.',
   },
   {
     q: 'What does it cost?',
@@ -196,7 +212,7 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="mt-5 text-base text-content/60 leading-relaxed max-w-xl">
-                  Reelink turns your property photos into a narrated vertical video and writes the
+                  Reelink turns your property photos into a captioned vertical video and writes the
                   listing copy for you — so posting to Facebook takes minutes instead of an evening
                   with Canva, CapCut and a blank caption box.
                 </p>
@@ -228,8 +244,8 @@ export default function LandingPage() {
                     <div className="text-xs text-content/50 font-semibold mt-1">To render a reel</div>
                   </div>
                   <div>
-                    <div className="font-heading text-base sm:text-2xl font-black">AI voice</div>
-                    <div className="text-xs text-content/50 font-semibold mt-1">Narration included</div>
+                    <div className="font-heading text-base sm:text-2xl font-black">360°</div>
+                    <div className="text-xs text-content/50 font-semibold mt-1">Virtual tours</div>
                   </div>
                 </div>
               </div>
@@ -284,7 +300,7 @@ export default function LandingPage() {
                         </div>
 
                         <div className="mt-4 space-y-2">
-                          {['1080×1920 vertical', 'AI hook + voiceover', 'Price & status overlay'].map(
+                          {['1080×1920 vertical', 'AI hook + captions', 'Price & status overlay'].map(
                             (line) => (
                               <div key={line} className="flex items-center gap-2 text-[11px] text-content/55">
                                 <Check size={12} className="text-gold shrink-0" />
@@ -363,13 +379,13 @@ export default function LandingPage() {
                 <p className="mt-5 text-base text-content/60 leading-relaxed">
                   Every reel on this page came out of the same engine you get when you sign up. Upload
                   the photos, fill in the price and location, and this is what lands in your Reels tab
-                  about a minute later — narration and overlays included.
+                  about a minute later — captions and overlays included.
                 </p>
 
                 <ul className="mt-8 space-y-3">
                   {[
                     'Vertical 1080×1920, the native Facebook Reels size',
-                    'AI-written hook and spoken voiceover',
+                    'AI-written hook, burned in as on-screen captions',
                     'Price, status and title burned into the video',
                     'Downloads as a standard MP4 you own',
                   ].map((item) => (
@@ -414,7 +430,7 @@ export default function LandingPage() {
                         {[
                           ['Format', '1080×1920'],
                           ['Length', '12 sec'],
-                          ['Voiceover', 'AI narrated'],
+                          ['Templates', 'Four styles'],
                           ['Output', 'MP4'],
                         ].map(([k, v]) => (
                           <div
@@ -463,14 +479,29 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-3 gap-5">
               {[
                 {
+                  icon: Compass,
+                  title: '360° virtual tours',
+                  body: 'Add panorama shots and buyers can look around the room instead of scrolling photos. Taken on a phone, no special camera.',
+                },
+                {
+                  icon: MessageSquare,
+                  title: 'Buyers message you directly',
+                  body: 'Enquiries land in Reelink, not lost in a comment thread. You see when they are online, typing, and when your reply was read.',
+                },
+                {
+                  icon: Clapperboard,
+                  title: 'AI video reels',
+                  body: 'Photos become a vertical video with motion, captions and branded overlays, in one of four templates. No editor required.',
+                },
+                {
                   icon: Sparkles,
                   title: 'AI listing descriptions',
                   body: 'Amicus AI writes a polished property description from your details, ready to paste into any post.',
                 },
                 {
-                  icon: Clapperboard,
-                  title: 'AI video reels + voiceover',
-                  body: 'Photos become a narrated vertical video with motion and branded overlays. No editor required.',
+                  icon: TrendingUp,
+                  title: 'See who is looking',
+                  body: 'View counts per property, and whether interest is rising or falling week to week. Your own visits are not counted.',
                 },
                 {
                   icon: Download,
@@ -528,6 +559,61 @@ export default function LandingPage() {
                       </span>
                     </div>
                     <p className="mt-2.5 text-sm text-content/40 leading-relaxed">{f.body}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* --------------------------------------------------- the buyer side
+            Reelink is two-sided now: a reel is only worth making if it lands
+            somewhere a buyer can act. The page still sells to agents — they are who
+            signs up — so this is framed as what *their* buyers get. */}
+        <section className="py-20 lg:py-28 border-t border-line/10">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+            <div className="max-w-2xl mb-14">
+              <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
+                For your buyers
+              </span>
+              <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                Your listing does not stop at the video.
+              </h2>
+              <p className="mt-4 text-content/50 text-sm">
+                Every property you publish gets a page on Reelink where buyers can explore
+                it and reach you — so a reel that gets attention has somewhere to send it.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-5">
+              {[
+                {
+                  icon: MapPin,
+                  title: 'Browse by map',
+                  body: 'Buyers filter by price, type and furnishing, and see exactly where each property sits before they ask for a viewing.',
+                },
+                {
+                  icon: Compass,
+                  title: 'Walk through it',
+                  body: 'Where you have added 360° shots, buyers look around each room from their phone — the closest thing to a viewing before the viewing.',
+                },
+                {
+                  icon: BadgeCheck,
+                  title: 'Know who they are talking to',
+                  body: 'Your profile, photo and verified badge sit beside every listing, so an enquiry starts with trust rather than a cold message.',
+                },
+              ].map((f) => {
+                const Icon = f.icon
+                return (
+                  <div
+                    key={f.title}
+                    className="p-7 rounded-2xl bg-panel/70 backdrop-blur-sm border border-line/10 shadow-xl shadow-black/10 hover:border-gold/30 transition-all"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-gold/15 border border-gold/25 flex items-center justify-center text-gold-dark mb-5">
+                      <Icon size={20} />
+                    </div>
+                    <h3 className="font-heading font-bold">{f.title}</h3>
+                    <p className="mt-2.5 text-sm text-content/50 leading-relaxed">{f.body}</p>
                   </div>
                 )
               })}
