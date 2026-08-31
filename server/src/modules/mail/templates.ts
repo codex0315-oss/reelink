@@ -1,0 +1,145 @@
+/**
+ * Email markup, kept deliberately plain.
+ *
+ * Inline styles and table-free layout because mail clients strip <style> blocks and
+ * Outlook renders modern CSS unpredictably. Every message also ships a text version,
+ * which is what most spam filters actually read.
+ */
+
+const NAVY = '#0B2952';
+const GOLD = '#F0A93B';
+const INK = '#070D1B';
+const MUTED = '#5A6780';
+
+function shell(heading: string, body: string) {
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#F4F6FA;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:${INK};">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid rgba(11,41,82,0.10);">
+      <div style="background:${NAVY};padding:22px 28px;">
+        <span style="color:#ffffff;font-size:19px;font-weight:800;letter-spacing:-0.02em;">Reelink</span>
+        <span style="color:${GOLD};font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;display:block;margin-top:4px;">List. Create. Reel. Connect.</span>
+      </div>
+      <div style="padding:30px 28px;">
+        <h1 style="margin:0 0 14px;font-size:21px;line-height:1.3;color:${INK};">${heading}</h1>
+        ${body}
+      </div>
+      <div style="padding:16px 28px 22px;border-top:1px solid rgba(11,41,82,0.08);">
+        <p style="margin:0;font-size:11.5px;line-height:1.6;color:${MUTED};">
+          You received this because someone used this address on Reelink.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+function button(href: string, label: string) {
+  return `<a href="${href}" style="display:inline-block;background:${GOLD};color:${INK};font-weight:700;font-size:15px;text-decoration:none;padding:13px 26px;border-radius:10px;">${label}</a>`;
+}
+
+const p = (text: string) =>
+  `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${MUTED};">${text}</p>`;
+
+export function passwordResetEmail(name: string, url: string, minutes: number) {
+  const html = shell(
+    'Reset your password',
+    [
+      p(`Hi ${escapeHtml(name)}, we got a request to reset the password on your Reelink account.`),
+      `<div style="margin:22px 0;">${button(url, 'Choose a new password')}</div>`,
+      p(`This link works once and expires in ${minutes} minutes.`),
+      p(
+        `If you didn't ask for this, you can ignore this email — your password stays as it is.`,
+      ),
+      `<p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:${MUTED};word-break:break-all;">Button not working? Paste this into your browser:<br><span style="color:${NAVY};">${url}</span></p>`,
+    ].join(''),
+  );
+
+  const text = [
+    `Hi ${name},`,
+    ``,
+    `We got a request to reset the password on your Reelink account.`,
+    `Open this link to choose a new one — it works once and expires in ${minutes} minutes:`,
+    ``,
+    url,
+    ``,
+    `If you didn't ask for this, ignore this email; your password stays as it is.`,
+    ``,
+    `— Reelink`,
+  ].join('\n');
+
+  return { subject: 'Reset your Reelink password', html, text };
+}
+
+export function passwordChangedEmail(name: string) {
+  const html = shell(
+    'Your password was changed',
+    [
+      p(`Hi ${escapeHtml(name)}, your Reelink password was just changed.`),
+      p(
+        `If that was you, nothing else to do. If it wasn't, reset your password immediately and check who has access to your email account.`,
+      ),
+    ].join(''),
+  );
+
+  const text = [
+    `Hi ${name},`,
+    ``,
+    `Your Reelink password was just changed.`,
+    `If that wasn't you, reset it immediately and check who has access to your email.`,
+    ``,
+    `— Reelink`,
+  ].join('\n');
+
+  return { subject: 'Your Reelink password was changed', html, text };
+}
+
+export function newMessageEmail(input: {
+  recipientName: string;
+  senderName: string;
+  propertyTitle?: string;
+  preview: string;
+  url: string;
+}) {
+  const { recipientName, senderName, propertyTitle, preview, url } = input;
+  const about = propertyTitle ? ` about ${escapeHtml(propertyTitle)}` : '';
+
+  const html = shell(
+    `${escapeHtml(senderName)} sent you a message`,
+    [
+      p(`Hi ${escapeHtml(recipientName)}, you have a new enquiry${about} on Reelink.`),
+      `<blockquote style="margin:0 0 18px;padding:14px 16px;background:#F4F6FA;border-left:3px solid ${GOLD};border-radius:0 8px 8px 0;font-size:15px;line-height:1.6;color:${INK};">${escapeHtml(preview)}</blockquote>`,
+      `<div style="margin:22px 0;">${button(url, 'Reply on Reelink')}</div>`,
+      p(`We only email you when you're offline — reply in the app and this stops.`),
+    ].join(''),
+  );
+
+  const text = [
+    `Hi ${recipientName},`,
+    ``,
+    `${senderName} sent you a message${propertyTitle ? ` about ${propertyTitle}` : ''} on Reelink:`,
+    ``,
+    `  "${preview}"`,
+    ``,
+    `Reply here: ${url}`,
+    ``,
+    `We only email you when you're offline.`,
+    ``,
+    `— Reelink`,
+  ].join('\n');
+
+  return {
+    subject: `${senderName} sent you a message${propertyTitle ? ` about ${propertyTitle}` : ''}`,
+    html,
+    text,
+  };
+}
+
+/** Names come from user input and land inside HTML, so they get escaped. */
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}

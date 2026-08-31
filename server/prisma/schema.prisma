@@ -1,0 +1,331 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  phone     String?
+  avatarUrl String?
+  /// Shown to buyers as a "Verified" badge. Only an admin approving a verification
+  /// request sets this — it is a claim about a real licence, not a self-assigned flag.
+  isVerified Boolean  @default(false)
+
+  /// 'agent' for everyone who signs up; 'admin' for staff. Deliberately not settable
+  /// through any API — an account is promoted with the seed script, so there is no
+  /// route an attacker could aim at to escalate.
+  role      String    @default("agent")
+
+  /// Set when staff suspend the account. Checked on every authenticated request, so a
+  /// suspension takes effect on the next call rather than whenever the token expires.
+  suspendedAt DateTime?
+  /// Shown to the user on their way out, and to staff reviewing the decision later.
+  suspendedReason String?
+
+  // In-app notification preferences. Default on so the app feels alive for new
+  // users, and each can be switched off independently from Settings.
+  notifyNewListings Boolean @default(true)
+  notifyNewReels    Boolean @default(true)
+  notifyMyActivity  Boolean @default(true)
+  /// Email me when a message arrives while I am offline. Separate from the in-app
+  /// switches above because it leaves the app and lands in someone inbox.
+  notifyEmailMessages Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  /// Set on every socket connect and disconnect, for "Active 12m ago".
+  lastSeenAt DateTime?
+
+  listings  Listing[]
+  messages  Message[]
+  buyerConversations  Conversation[] @relation("BuyerConversations")
+  sellerConversations Conversation[] @relation("SellerConversations")
+  notifications Notification[]
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens RefreshToken[]
+  reelRenders ReelRender[]
+  listingViews ListingView[]
+  verificationRequests VerificationRequest[]
+  reels     Reel[]
+  chatMessages ChatMessage[]
+}
+
+/// One continuous Amicus AI conversation per user, kept so advice survives a refresh.
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String   // 'user' | 'assistant'
+  content   String
+  imageUrls String[] // photos the user attached to this message
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// A single-use password reset link.
+///
+/// Only a hash of the token is stored: the raw value goes out in the email and is
+/// never written down, so a leaked database cannot be used to reset anyone's password.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// A long-lived credential that buys short-lived access tokens.
+///
+/// Access tokens are JWTs — self-contained, so the server cannot take one back once
+/// issued. That is why they now last an hour instead of a week: the damage window of a
+/// stolen one is bounded by its own expiry. Revocation lives here instead, because a
+/// row can be deleted. Signing out, or a refresh token being replayed, kills the
+/// session for real.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  /// Set when this token is spent. A spent token that comes back is a replay.
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  /// What this notification is about, so tapping it can open the thing itself: a
+  /// conversation id for 'message', a listing id for 'listing', a reel id for 'reel'.
+  /// Nullable because older rows predate it and because the target can be deleted —
+  /// the client falls back to the relevant tab when it is missing.
+  entityId  String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+model Listing {
+  id             String    @id @default(uuid())
+  title          String
+  description    String?
+  price          Float
+  lotArea        Float?
+  floorArea      Float?
+  amenities      String[]
+  status         String
+  listingType    String    @default("sale")
+  latitude       Float?
+  longitude      Float?
+  photoUrls      String[]
+  // Optional 360 shots that power the virtual tour. Separate from photoUrls because
+  // they are a different kind of image and are validated as panorama-shaped.
+  panoramaUrls   String[]
+  // Room name per panorama, written by the vision model in the background after
+  // upload. Empty until that finishes, or if it fails.
+  panoramaLabels String[]
+  publishToFacebook Boolean @default(false)
+  facebookPostId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  leads          Lead[]
+  views          ListingView[]
+  conversations  Conversation[]
+  reels          Reel[]
+}
+model Reel {
+  id         String   @id @default(uuid())
+  videoUrl   String?
+  status     String   @default("pending")
+  /// The AI headline burned into the video, kept so it can be copied as a caption.
+  hook       String?
+  /// Which visual template this reel was rendered with.
+  template   String   @default("classic")
+  createdAt  DateTime @default(now())
+
+  // Populated only for reels created through the AI quick-create flow, which renders
+  // from photos and details typed in directly instead of from a saved listing.
+  title          String?
+  price          Float?
+  propertyStatus String?
+  listingType    String?
+  amenities      String[]
+  photoUrls      String[]
+
+  // Reels are owned directly, since a standalone reel has no listing to inherit from.
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  listingId  String?
+  listing    Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+/// One row per render *attempt*, which is what the quota actually counts.
+///
+/// Counting Reel rows would not work: regenerating reuses the existing reel instead
+/// of creating a new one, so a user could re-render the same reel endlessly and never
+/// reach the cap. Keeping it in the database rather than in the rate limiter's memory
+/// also means a server restart doesn't hand everyone a fresh allowance.
+model ReelRender {
+  id        String   @id @default(uuid())
+  /// Null once the reel is deleted; the attempt still counts toward that day.
+  reelId    String?
+  createdAt DateTime @default(now())
+
+  /// Whether this attempt paid for an AI-generated opening clip. Free Remotion renders
+  /// and billed Higgsfield ones share a table but not an allowance — the cheap one is
+  /// capped for fairness, the expensive one for cost.
+  usedAi    Boolean  @default(false)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// An agent asking to be verified as a real, licensed broker or salesperson.
+///
+/// Verification has to be *reviewed*, not toggled: the badge tells a buyer this person
+/// is who they claim to be, so there is a submission with evidence behind every
+/// approval. In the Philippines that is a PRC licence number for brokers and
+/// salespersons, optionally backed by a photo of the licence or ID.
+model VerificationRequest {
+  id             String    @id @default(uuid())
+  /// PRC licence or DHSUD registration number, as typed by the agent.
+  licenseNumber  String
+  /// Optional photo of the licence. Not required, so an agent is never blocked from
+  /// asking, but staff can decline without one.
+  documentUrl    String?
+  /// 'pending' | 'approved' | 'rejected'
+  status         String    @default("pending")
+  /// Why it was declined, shown back to the agent so they can correct and resubmit.
+  reviewNote     String?
+  reviewedAt     DateTime?
+  reviewedById   String?
+  createdAt      DateTime  @default(now())
+
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+/// One recorded look at a listing's detail page.
+///
+/// Rows rather than a counter column: a single number can only ever say "241 views",
+/// while timestamps can answer "is this listing picking up or going quiet?", which is
+/// the question an agent actually has. Deliberately thin — no IP, no user agent, no
+/// referrer; the dashboard needs a trend line, not a surveillance log.
+model ListingView {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  /// Null for signed-out visitors. Used only to keep one person refreshing a page from
+  /// counting as twenty views.
+  viewerId  String?
+  viewer    User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, createdAt])
+  @@index([viewerId, listingId, createdAt])
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  source      String
+  name        String?
+  contact     String?
+  commentText String?
+  createdAt   DateTime @default(now())
+
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+/// One buyer talking to one seller about one property. Scoped to the listing so an
+/// agent with several units can tell the enquiries apart.
+model Conversation {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  /// Bumped on every message, so the inbox can sort by recent activity cheaply.
+  lastMessageAt DateTime  @default(now())
+
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  buyerId       String
+  buyer         User      @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  sellerId      String
+  seller        User      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  messages      Message[]
+
+  /// When each side removed this thread from their own inbox.
+  ///
+  /// Per-side rather than a single flag, because one row is shared by two people: a
+  /// hard delete would take the other party's copy and their message history with it,
+  /// which is not what "delete" means in any messaging app. Hiding is also reversible —
+  /// a new message clears the stamp and the thread returns, carrying only what was said
+  /// after it was cleared.
+  buyerDeletedAt  DateTime?
+  sellerDeletedAt DateTime?
+
+  /// Reopening the same property with the same person continues the thread instead
+  /// of starting a second one.
+  @@unique([listingId, buyerId, sellerId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  createdAt      DateTime     @default(now())
+  /// Set when the recipient's app acknowledges receipt — not when we merely think
+  /// they are online, so a message lost to a dropped socket never shows "Delivered".
+  deliveredAt    DateTime?
+  /// Null until the other party opens the thread; drives the unread count and ticks.
+  readAt         DateTime?
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}

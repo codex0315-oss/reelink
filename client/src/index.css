@@ -1,0 +1,260 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --color-navy: #0B2952;
+  --color-navy-dark: #070D1B;
+  --color-navy-deep: #04070F;
+  --color-navy-panel: #0C1830;
+  --color-gold: #F0A93B;
+  --color-gold-dark: #D6901F;
+}
+
+/*
+ * Themeable surface tokens for the public pages (landing, login, register).
+ * Dark is the default; adding .light to <html> flips every one of them, so the
+ * markup uses one set of class names instead of duplicating each rule.
+ */
+:root {
+  color-scheme: dark;
+  --surface: #0A1A33; /* dark navy, not black */
+  --panel: #12294D;
+  --content: #FFFFFF;
+  --line: #FFFFFF; /* borders and subtle fills, tinted with opacity */
+
+  /* Dashboard surfaces. `ink` doubles as the tint for muted text, borders and
+     subtle fills (ink/50, ink/10, ink/5), so one token carries the whole scale. */
+  /* Navy rather than near-black. The old #070D1B sat at 0.4% lightness, which read
+     as black next to the landing page's navy — these are the same family as
+     --surface/--panel above, so the dashboard and the public pages now match. */
+  --app: #0C1B33; /* page background */
+  --card: #15294B; /* raised panels */
+  --ink: #EDF2FA; /* primary text, lifted to hold contrast on the lighter card */
+
+  /* Status colours need to lighten on dark, or red-600 text on a dark card falls
+     below a readable contrast. Backgrounds stay as translucent tints of the 500. */
+  --danger: #F87171;
+  --warn: #FBBF24;
+  --success: #34D399;
+}
+
+html.light {
+  color-scheme: light;
+  --surface: #F7F8FB;
+  --panel: #FFFFFF;
+  --content: #070D1B;
+  --line: #0B2952;
+
+  --app: #FAFAFC;
+  --card: #FFFFFF;
+  --ink: #070D1B;
+
+  --danger: #DC2626;
+  --warn: #D97706;
+  --success: #059669;
+}
+
+/* `inline` makes Tailwind emit var() rather than the resolved value, which is what
+   lets these swap at runtime when the .light class is toggled. */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-panel: var(--panel);
+  --color-content: var(--content);
+  --color-line: var(--line);
+
+  --color-app: var(--app);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-success: var(--success);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* clip, not hidden: `hidden` makes this a scroll container, which silently breaks
+     `position: sticky` for any descendant (the landing page header). */
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  background-color: var(--app);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(7, 13, 27, 0.08);
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 50% -20%, rgba(11, 41, 82, 0.14) 0%, rgba(240, 169, 59, 0.10) 40%, transparent 70%);
+}
+
+.mac-window-shadow {
+  box-shadow: 0 30px 70px -15px rgba(7, 13, 27, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Faint blueprint grid. Keeps large dark areas from reading as flat empty space. */
+/* Uses the themed line colour so the grid stays visible in light mode too. */
+.grid-texture {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--line) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 4%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+html.light .grid-texture {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--line) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 8%, transparent) 1px, transparent 1px);
+}
+
+/* Fades the grid out toward the edges so it never looks like a hard-edged texture. */
+.grid-fade {
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+}
+
+/* Ambient blurred glows read as atmosphere on dark, but as dirty smudges on a light
+   background, so they are pulled right back when the light theme is active. */
+.ambient-glow {
+  opacity: 0.8;
+}
+
+html.light .ambient-glow {
+  opacity: 0.18;
+}
+
+/* Hairline divider that carries the brand gold instead of a flat grey line. */
+.gold-rule {
+  background: linear-gradient(to right, transparent, rgba(240, 169, 59, 0.5), transparent);
+}
+
+/*
+ * OpenStreetMap only serves light tiles, so on the dark theme they are inverted and
+ * hue-rotated back — the standard treatment, and it costs nothing extra to load.
+ * Only .leaflet-tile is touched, so markers and popups (separate panes) stay correct.
+ */
+/*
+ * Leaflet gives its panes z-index 400-700 and its controls up to 1000, but
+ * .leaflet-container is only `position: relative` with no z-index — so it never
+ * creates a stacking context and those values compete with the whole page. That is
+ * what let a map paint over the Amicus bubble and window. Isolating the container
+ * keeps Leaflet's stack to itself, for every map in the app.
+ */
+.leaflet-container {
+  isolation: isolate;
+}
+
+html:not(.light) .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9);
+}
+
+html:not(.light) .leaflet-container {
+  background: var(--app);
+}
+
+/* Leaflet hard-codes white for popups and controls. */
+html:not(.light) .leaflet-popup-content-wrapper,
+html:not(.light) .leaflet-popup-tip {
+  background: var(--card);
+  color: var(--ink);
+}
+
+html:not(.light) .leaflet-control-zoom a {
+  background: var(--card);
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 15%, transparent);
+}
+
+html:not(.light) .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  color: color-mix(in srgb, var(--ink) 65%, transparent);
+}
+
+html:not(.light) .leaflet-control-attribution a {
+  color: color-mix(in srgb, var(--ink) 85%, transparent);
+}
+
+/*
+ * The chat window grows out of the bubble and collapses back into it, the way a
+ * macOS window goes to and from the Dock. The origin is the bottom-right corner,
+ * which is exactly where the bubble sits, so the two ends of the motion line up.
+ */
+@keyframes amicus-genie-in {
+  from {
+    opacity: 0;
+    transform: translate3d(36px, 56px, 0) scale(0.18);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes amicus-genie-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(36px, 56px, 0) scale(0.18);
+  }
+}
+
+.amicus-window {
+  transform-origin: 100% 100%;
+}
+
+/* Decelerating on the way out, accelerating on the way in — the asymmetry is what
+   makes it read as being pulled into the bubble rather than just fading. */
+.amicus-in {
+  animation: amicus-genie-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.amicus-out {
+  animation: amicus-genie-out 200ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes amicus-bubble-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+.amicus-bubble {
+  animation: amicus-bubble-pop 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .amicus-in,
+  .amicus-out,
+  .amicus-bubble {
+    animation: none;
+  }
+}
+
+/* The reels feed scrolls one video at a time, so the scrollbar is just noise. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

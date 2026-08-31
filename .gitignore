@@ -1,0 +1,47 @@
+# Dependencies and build output — reproducible from package.json, never committed.
+node_modules/
+dist/
+build/
+
+# Secrets. The API keys for Higgsfield, Groq, Brevo and the JWT signing secret live
+# here. Committed once, a key is in the repository history forever, so both packages
+# keep a .env.example listing the names with no values.
+.env
+.env.*
+!.env.example
+
+# User-uploaded content: listing photos, panoramas, avatars, rendered reels and the
+# narration audio. This is data, not source — it belongs in object storage, and git
+# keeps every version of a binary forever, so committing it would grow the repo and
+# never shrink it again.
+#
+# The folders themselves are kept (via .gitkeep) because multer writes straight into
+# them and fails on a fresh clone if they do not exist.
+server/uploads/**
+!server/uploads/**/
+!server/uploads/**/.gitkeep
+!server/uploads/music/README.md
+
+# Remotion writes renders and its webpack bundle here during development.
+server/remotion/out/
+.remotion/
+
+# Tool output: a flattened dump of the whole repo. Committing it would embed a copy of
+# the codebase inside the codebase, and it is stale the moment anything changes.
+repomix-output.xml
+
+# Logs and local scratch
+*.log
+logs/
+npm-debug.log*
+coverage/
+.nyc_output/
+
+# Editor and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.local

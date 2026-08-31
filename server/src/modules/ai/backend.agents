@@ -1,0 +1,276 @@
+┣ 📂.agents
+┃ ┗ 📂skills
+┃   ┣ 📂prisma-cli
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜agent-safety.md
+┃   ┃ ┃ ┣ 📜complete.md
+┃   ┃ ┃ ┣ 📜db-execute.md
+┃   ┃ ┃ ┣ 📜db-pull.md
+┃   ┃ ┃ ┣ 📜db-push.md
+┃   ┃ ┃ ┣ 📜db-seed.md
+┃   ┃ ┃ ┣ 📜debug.md
+┃   ┃ ┃ ┣ 📜dev.md
+┃   ┃ ┃ ┣ 📜format.md
+┃   ┃ ┃ ┣ 📜generate.md
+┃   ┃ ┃ ┣ 📜init.md
+┃   ┃ ┃ ┣ 📜mcp.md
+┃   ┃ ┃ ┣ 📜migrate-deploy.md
+┃   ┃ ┃ ┣ 📜migrate-dev.md
+┃   ┃ ┃ ┣ 📜migrate-diff.md
+┃   ┃ ┃ ┣ 📜migrate-reset.md
+┃   ┃ ┃ ┣ 📜migrate-resolve.md
+┃   ┃ ┃ ┣ 📜migrate-status.md
+┃   ┃ ┃ ┣ 📜studio.md
+┃   ┃ ┃ ┗ 📜validate.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-client-api
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜client-methods.md
+┃   ┃ ┃ ┣ 📜constructor.md
+┃   ┃ ┃ ┣ 📜filters.md
+┃   ┃ ┃ ┣ 📜model-queries.md
+┃   ┃ ┃ ┣ 📜query-options.md
+┃   ┃ ┃ ┣ 📜raw-queries.md
+┃   ┃ ┃ ┣ 📜relations.md
+┃   ┃ ┃ ┗ 📜transactions.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-compute
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜app-deploy-cli.md
+┃   ┃ ┃ ┣ 📜compute-config.md
+┃   ┃ ┃ ┣ 📜create-prisma.md
+┃   ┃ ┃ ┣ 📜frameworks.md
+┃   ┃ ┃ ┣ 📜sdk-api.md
+┃   ┃ ┃ ┗ 📜troubleshooting.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-database-setup
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜cockroachdb.md
+┃   ┃ ┃ ┣ 📜mongodb.md
+┃   ┃ ┃ ┣ 📜mysql.md
+┃   ┃ ┃ ┣ 📜postgresql.md
+┃   ┃ ┃ ┣ 📜prisma-client-setup.md
+┃   ┃ ┃ ┣ 📜prisma-postgres.md
+┃   ┃ ┃ ┣ 📜sqlite.md
+┃   ┃ ┃ ┗ 📜sqlserver.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-driver-adapter-implementation
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-mongodb-upgrade
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜client-api-mapping.md
+┃   ┃ ┃ ┣ 📜decision-stay-or-migrate.md
+┃   ┃ ┃ ┣ 📜migrations-mapping.md
+┃   ┃ ┃ ┣ 📜schema-contract-mapping.md
+┃   ┃ ┃ ┗ 📜verify-cutover-checklist.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-postgres
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜console-and-connections.md
+┃   ┃ ┃ ┣ 📜create-db-cli.md
+┃   ┃ ┃ ┣ 📜management-api-sdk.md
+┃   ┃ ┃ ┗ 📜management-api.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┣ 📂prisma-postgres-setup
+┃   ┃ ┣ 📂references
+┃   ┃ ┃ ┣ 📜api-basics.md
+┃   ┃ ┃ ┣ 📜auth.md
+┃   ┃ ┃ ┣ 📜endpoints.md
+┃   ┃ ┃ ┗ 📜prisma7-client.md
+┃   ┃ ┗ 📜SKILL.md
+┃   ┗ 📂prisma-upgrade-v7
+┃     ┣ 📂references
+┃     ┃ ┣ 📜accelerate-users.md
+┃     ┃ ┣ 📜driver-adapters.md
+┃     ┃ ┣ 📜env-variables.md
+┃     ┃ ┣ 📜esm-support.md
+┃     ┃ ┣ 📜prisma-config.md
+┃     ┃ ┣ 📜removed-features.md
+┃     ┃ ┗ 📜schema-changes.md
+┃     ┗ 📜SKILL.md
+┣ 📂.claude
+┃ ┗ 📂skills
+┃   ┣ 📜prisma-cli
+┃   ┣ 📜prisma-client-api
+┃   ┣ 📜prisma-compute
+┃   ┣ 📜prisma-database-setup
+┃   ┣ 📜prisma-driver-adapter-implementation
+┃   ┣ 📜prisma-mongodb-upgrade
+┃   ┣ 📜prisma-postgres
+┃   ┣ 📜prisma-postgres-setup
+┃   ┗ 📜prisma-upgrade-v7
+┣ 📂.windsurf
+┃ ┗ 📂skills
+┃   ┣ 📜prisma-cli
+┃   ┣ 📜prisma-client-api
+┃   ┣ 📜prisma-compute
+┃   ┣ 📜prisma-database-setup
+┃   ┣ 📜prisma-driver-adapter-implementation
+┃   ┣ 📜prisma-mongodb-upgrade
+┃   ┣ 📜prisma-postgres
+┃   ┣ 📜prisma-postgres-setup
+┃   ┗ 📜prisma-upgrade-v7
+┣ 📂dist
+┃ ┣ 📂src
+┃ ┃ ┣ 📂modules
+┃ ┃ ┃ ┣ 📂ai
+┃ ┃ ┃ ┃ ┣ 📜ai.controller.d.ts
+┃ ┃ ┃ ┃ ┣ 📜ai.controller.js
+┃ ┃ ┃ ┃ ┣ 📜ai.controller.js.map
+┃ ┃ ┃ ┃ ┣ 📜ai.module.d.ts
+┃ ┃ ┃ ┃ ┣ 📜ai.module.js
+┃ ┃ ┃ ┃ ┣ 📜ai.module.js.map
+┃ ┃ ┃ ┃ ┣ 📜ai.service.d.ts
+┃ ┃ ┃ ┃ ┣ 📜ai.service.js
+┃ ┃ ┃ ┃ ┗ 📜ai.service.js.map
+┃ ┃ ┃ ┣ 📂auth
+┃ ┃ ┃ ┃ ┣ 📂dto
+┃ ┃ ┃ ┃ ┃ ┣ 📜login.dto.d.ts
+┃ ┃ ┃ ┃ ┃ ┣ 📜login.dto.js
+┃ ┃ ┃ ┃ ┃ ┣ 📜login.dto.js.map
+┃ ┃ ┃ ┃ ┃ ┣ 📜register.dto.d.ts
+┃ ┃ ┃ ┃ ┃ ┣ 📜register.dto.js
+┃ ┃ ┃ ┃ ┃ ┗ 📜register.dto.js.map
+┃ ┃ ┃ ┃ ┣ 📂strategies
+┃ ┃ ┃ ┃ ┃ ┣ 📜jwt.strategy.d.ts
+┃ ┃ ┃ ┃ ┃ ┣ 📜jwt.strategy.js
+┃ ┃ ┃ ┃ ┃ ┗ 📜jwt.strategy.js.map
+┃ ┃ ┃ ┃ ┣ 📜auth.controller.d.ts
+┃ ┃ ┃ ┃ ┣ 📜auth.controller.js
+┃ ┃ ┃ ┃ ┣ 📜auth.controller.js.map
+┃ ┃ ┃ ┃ ┣ 📜auth.module.d.ts
+┃ ┃ ┃ ┃ ┣ 📜auth.module.js
+┃ ┃ ┃ ┃ ┣ 📜auth.module.js.map
+┃ ┃ ┃ ┃ ┣ 📜auth.service.d.ts
+┃ ┃ ┃ ┃ ┣ 📜auth.service.js
+┃ ┃ ┃ ┃ ┗ 📜auth.service.js.map
+┃ ┃ ┃ ┣ 📂listings
+┃ ┃ ┃ ┃ ┣ 📂dto
+┃ ┃ ┃ ┃ ┃ ┣ 📜create-listing.dto.d.ts
+┃ ┃ ┃ ┃ ┃ ┣ 📜create-listing.dto.js
+┃ ┃ ┃ ┃ ┃ ┣ 📜create-listing.dto.js.map
+┃ ┃ ┃ ┃ ┃ ┣ 📜update-listing.dto.d.ts
+┃ ┃ ┃ ┃ ┃ ┣ 📜update-listing.dto.js
+┃ ┃ ┃ ┃ ┃ ┗ 📜update-listing.dto.js.map
+┃ ┃ ┃ ┃ ┣ 📜listings.controller.d.ts
+┃ ┃ ┃ ┃ ┣ 📜listings.controller.js
+┃ ┃ ┃ ┃ ┣ 📜listings.controller.js.map
+┃ ┃ ┃ ┃ ┣ 📜listings.module.d.ts
+┃ ┃ ┃ ┃ ┣ 📜listings.module.js
+┃ ┃ ┃ ┃ ┣ 📜listings.module.js.map
+┃ ┃ ┃ ┃ ┣ 📜listings.service.d.ts
+┃ ┃ ┃ ┃ ┣ 📜listings.service.js
+┃ ┃ ┃ ┃ ┗ 📜listings.service.js.map
+┃ ┃ ┃ ┗ 📂notifications
+┃ ┃ ┃   ┣ 📜notifications.controller.d.ts
+┃ ┃ ┃   ┣ 📜notifications.controller.js
+┃ ┃ ┃   ┣ 📜notifications.controller.js.map
+┃ ┃ ┃   ┣ 📜notifications.gateway.d.ts
+┃ ┃ ┃   ┣ 📜notifications.gateway.js
+┃ ┃ ┃   ┣ 📜notifications.gateway.js.map
+┃ ┃ ┃   ┣ 📜notifications.module.d.ts
+┃ ┃ ┃   ┣ 📜notifications.module.js
+┃ ┃ ┃   ┣ 📜notifications.module.js.map
+┃ ┃ ┃   ┣ 📜notifications.service.d.ts
+┃ ┃ ┃   ┣ 📜notifications.service.js
+┃ ┃ ┃   ┗ 📜notifications.service.js.map
+┃ ┃ ┣ 📂prisma
+┃ ┃ ┃ ┣ 📜prisma.module.d.ts
+┃ ┃ ┃ ┣ 📜prisma.module.js
+┃ ┃ ┃ ┣ 📜prisma.module.js.map
+┃ ┃ ┃ ┣ 📜prisma.service.d.ts
+┃ ┃ ┃ ┣ 📜prisma.service.js
+┃ ┃ ┃ ┗ 📜prisma.service.js.map
+┃ ┃ ┣ 📜app.controller.d.ts
+┃ ┃ ┣ 📜app.controller.js
+┃ ┃ ┣ 📜app.controller.js.map
+┃ ┃ ┣ 📜app.module.d.ts
+┃ ┃ ┣ 📜app.module.js
+┃ ┃ ┣ 📜app.module.js.map
+┃ ┃ ┣ 📜app.service.d.ts
+┃ ┃ ┣ 📜app.service.js
+┃ ┃ ┣ 📜app.service.js.map
+┃ ┃ ┣ 📜main.d.ts
+┃ ┃ ┣ 📜main.js
+┃ ┃ ┗ 📜main.js.map
+┃ ┣ 📜prisma.config.d.ts
+┃ ┣ 📜prisma.config.js
+┃ ┣ 📜prisma.config.js.map
+┃ ┗ 📜tsconfig.build.tsbuildinfo
+┣ 📂prisma
+┃ ┣ 📂migrations
+┃ ┃ ┣ 📂20260812155358_init
+┃ ┃ ┃ ┗ 📜migration.sql
+┃ ┃ ┣ 📂20260815152537_rename_agent_to_user
+┃ ┃ ┃ ┗ 📜migration.sql
+┃ ┃ ┣ 📂20260816055155_add_notifications
+┃ ┃ ┃ ┗ 📜migration.sql
+┃ ┃ ┗ 📜migration_lock.toml
+┃ ┗ 📜schema.prisma
+┣ 📂src
+┃ ┣ 📂modules
+┃ ┃ ┣ 📂ai
+┃ ┃ ┃ ┣ 📜ai.controller.ts
+┃ ┃ ┃ ┣ 📜ai.module.ts
+┃ ┃ ┃ ┗ 📜ai.service.ts
+┃ ┃ ┣ 📂auth
+┃ ┃ ┃ ┣ 📂dto
+┃ ┃ ┃ ┃ ┣ 📜login.dto.ts
+┃ ┃ ┃ ┃ ┗ 📜register.dto.ts
+┃ ┃ ┃ ┣ 📂strategies
+┃ ┃ ┃ ┃ ┗ 📜jwt.strategy.ts
+┃ ┃ ┃ ┣ 📜auth.controller.spec.ts
+┃ ┃ ┃ ┣ 📜auth.controller.ts
+┃ ┃ ┃ ┣ 📜auth.module.ts
+┃ ┃ ┃ ┣ 📜auth.service.spec.ts
+┃ ┃ ┃ ┗ 📜auth.service.ts
+┃ ┃ ┣ 📂listings
+┃ ┃ ┃ ┣ 📂dto
+┃ ┃ ┃ ┃ ┣ 📜create-listing.dto.ts
+┃ ┃ ┃ ┃ ┗ 📜update-listing.dto.ts
+┃ ┃ ┃ ┣ 📜listings.controller.ts
+┃ ┃ ┃ ┣ 📜listings.module.ts
+┃ ┃ ┃ ┗ 📜listings.service.ts
+┃ ┃ ┗ 📂notifications
+┃ ┃   ┣ 📜notifications.controller.ts
+┃ ┃   ┣ 📜notifications.gateway.ts
+┃ ┃   ┣ 📜notifications.module.ts
+┃ ┃   ┗ 📜notifications.service.ts
+┃ ┣ 📂prisma
+┃ ┃ ┣ 📜prisma.module.ts
+┃ ┃ ┗ 📜prisma.service.ts
+┃ ┣ 📜app.controller.spec.ts
+┃ ┣ 📜app.controller.ts
+┃ ┣ 📜app.module.ts
+┃ ┣ 📜app.service.ts
+┃ ┗ 📜main.ts
+┣ 📂test
+┃ ┣ 📜app.e2e-spec.ts
+┃ ┗ 📜jest-e2e.json
+┣ 📂uploads
+┃ ┗ 📂listings
+┃   ┣ 📜1786881229264-802646298.jpg
+┃   ┣ 📜1786881229310-682316914.jpg
+┃   ┣ 📜1786881229366-506812916.jpg
+┃   ┣ 📜1786881229367-439676329.jpg
+┃   ┣ 📜1786881229394-710097464.jpg
+┃   ┣ 📜1786881229403-408047638.jpg
+┃   ┣ 📜1786881229423-53368069.jpg
+┃   ┣ 📜1786881229424-365522649.jpg
+┃   ┣ 📜1786977122458-332664219.jpg
+┃   ┣ 📜1786977122464-810063596.jpg
+┃   ┣ 📜1786977122539-173191871.jpg
+┃   ┣ 📜1786977122547-403521599.jpg
+┃   ┣ 📜1786977122628-787108720.jpg
+┃   ┗ 📜1786977122651-992093483.jpg
+┣ 📜.env
+┣ 📜.gitignore
+┣ 📜.prettierrc
+┣ 📜eslint.config.mjs
+┣ 📜nest-cli.json
+┣ 📜package.json
+┣ 📜prisma.config.ts
+┣ 📜README.md
+┣ 📜skills-lock.json
+┣ 📜tsconfig.build.json
+┗ 📜tsconfig.json

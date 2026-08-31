@@ -1,0 +1,452 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, BadgeCheck, Ban, Check, Search, ShieldCheck, X } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import {
+  fetchAdminMetrics,
+  fetchAdminUsers,
+  fetchVerifications,
+  reviewVerification,
+  setUserSuspension,
+  type AdminMetrics,
+  type AdminUser,
+  type VerificationRequest,
+} from '../lib/api'
+import { assetUrl } from '../lib/config'
+
+type Tab = 'overview' | 'verifications' | 'users'
+
+/**
+ * Staff tooling, on its own route rather than inside the agent dashboard.
+ *
+ * The role check here only decides what to render — every endpoint behind it re-checks
+ * server-side, so a user who edits their own profile object in memory gains nothing but
+ * an empty screen. It answers "page not found" rather than "forbidden" for the same
+ * reason the guard does: confirming that an admin area exists is free reconnaissance.
+ */
+export default function AdminPage() {
+  const { user, token, loading } = useAuth()
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<Tab>('overview')
+
+  if (loading) return null
+
+  if (!user || !token || user.role !== 'admin') {
+    return (
+      <div className="min-h-[100dvh] bg-app flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-xl bg-ink/5 mx-auto mb-3 flex items-center justify-center">
+            <ShieldCheck size={20} className="text-ink/25" />
+          </div>
+          <p className="font-bold text-ink text-sm">Page not found</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mt-4 px-4 py-2 rounded-lg bg-ink text-app text-xs font-bold hover:bg-ink/85 transition-all"
+          >
+            Back to Reelink
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-[100dvh] bg-app">
+      <header className="border-b border-ink/10 bg-card">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-ink/50 hover:bg-ink/5"
+            aria-label="Back to Reelink"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-heading text-lg font-black text-ink truncate">Reelink Admin</h1>
+            <p className="text-xs text-ink/50 truncate">Signed in as {user.name}</p>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scrollbar-hide">
+          {(
+            [
+              ['overview', 'Overview'],
+              ['verifications', 'Verifications'],
+              ['users', 'Users'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`shrink-0 px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${
+                tab === key
+                  ? 'border-gold text-ink'
+                  : 'border-transparent text-ink/45 hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {tab === 'overview' && <Overview token={token} />}
+        {tab === 'verifications' && <Verifications token={token} />}
+        {tab === 'users' && <Users token={token} currentUserId={user.id} />}
+      </main>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ overview */
+
+function Overview({ token }: { token: string }) {
+  const [m, setM] = useState<AdminMetrics | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetchAdminMetrics(token)
+      .then(setM)
+      .catch((e: Error) => setError(e.message))
+  }, [token])
+
+  if (error) return <p className="text-sm text-danger py-10 text-center">{error}</p>
+  if (!m) return <p className="text-sm text-ink/40 py-10 text-center">Loading…</p>
+
+  return (
+    <div className="space-y-6">
+      {m.queue.pendingVerifications > 0 && (
+        <div className="rounded-2xl border border-gold/30 bg-gold/[0.07] p-4 flex items-center gap-3">
+          <BadgeCheck size={18} className="text-gold-dark shrink-0" />
+          <p className="text-sm text-ink font-semibold">
+            {m.queue.pendingVerifications} verification
+            {m.queue.pendingVerifications === 1 ? '' : 's'} waiting for review
+          </p>
+        </div>
+      )}
+
+      <Section title="People">
+        <Stat
+          label="Agents"
+          value={m.users.total}
+          hint={`${m.users.newThisWeek} joined this week`}
+        />
+        <Stat label="Verified" value={m.users.verified} hint="approved by staff" />
+        <Stat label="Suspended" value={m.users.suspended} hint="cannot sign in" warn />
+      </Section>
+
+      <Section title="Content">
+        <Stat
+          label="Listings"
+          value={m.listings.total}
+          hint={`${m.listings.newThisWeek} added this week`}
+        />
+        <Stat label="Reels ready" value={m.reels.ready} hint={`${m.reels.total} total`} />
+        <Stat
+          label="Failed renders"
+          value={m.reels.failed}
+          hint="worth investigating"
+          warn={m.reels.failed > 0}
+        />
+      </Section>
+
+      <Section title="Cost and load">
+        <Stat label="Renders today" value={m.renders.today} hint="across all accounts" />
+        <Stat
+          label="AI clips this week"
+          value={m.renders.aiThisWeek}
+          hint="billed by Higgsfield"
+        />
+        {/* The only figure here that is an estimate rather than a count, so it says so
+            rather than presenting a derived number as a fact. */}
+        <Stat
+          label="Est. AI spend"
+          value={`$${m.aiSpend.estimatedUsd.toFixed(2)}`}
+          hint="this week, estimated from credit price"
+          warn={m.aiSpend.estimatedUsd > 10}
+        />
+      </Section>
+
+      <Section title="Engagement">
+        <Stat label="Property views" value={m.engagement.viewsThisWeek} hint="this week" />
+        <Stat label="Conversations" value={m.engagement.conversations} hint="buyer to agent" />
+      </Section>
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-[11px] font-bold text-ink/45 uppercase tracking-wide mb-2">{title}</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{children}</div>
+    </section>
+  )
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  warn,
+}: {
+  label: string
+  value: number | string
+  hint: string
+  warn?: boolean
+}) {
+  // A warning tone on a zero would paint "0 suspended" red, which reads as a problem
+  // when it is in fact the good outcome.
+  const isZero = value === 0 || value === '$0.00'
+
+  return (
+    <div className="bg-card rounded-2xl border border-ink/10 p-4 min-w-0">
+      <div
+        className={`font-heading text-2xl font-black ${warn && !isZero ? 'text-warn' : 'text-ink'}`}
+      >
+        {value}
+      </div>
+      <div className="text-xs font-bold text-ink mt-1">{label}</div>
+      <div className="text-[11px] text-ink/40 mt-0.5">{hint}</div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------- verifications */
+
+function Verifications({ token }: { token: string }) {
+  const [items, setItems] = useState<VerificationRequest[] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    fetchVerifications(token)
+      .then(setItems)
+      .catch((e: Error) => setError(e.message))
+  }, [token])
+
+  useEffect(load, [load])
+
+  async function review(id: string, approve: boolean) {
+    // A rejection with no reason leaves the agent nothing to act on, so it is required.
+    const note = approve ? undefined : window.prompt('Why is this being declined?') || undefined
+    if (!approve && !note) return
+
+    setBusy(id)
+    setError('')
+    try {
+      await reviewVerification(token, id, approve, note)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that decision')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (error) return <p className="text-sm text-danger py-10 text-center">{error}</p>
+  if (!items) return <p className="text-sm text-ink/40 py-10 text-center">Loading…</p>
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-12 h-12 rounded-xl bg-ink/5 mx-auto mb-3 flex items-center justify-center">
+          <BadgeCheck size={20} className="text-ink/25" />
+        </div>
+        <p className="font-bold text-ink text-sm">Nothing waiting</p>
+        <p className="text-xs text-ink/50 mt-1">
+          Requests appear here as agents submit them from Settings.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((r) => (
+        <div
+          key={r.id}
+          className="bg-card rounded-2xl border border-ink/10 p-4 flex flex-wrap items-center gap-x-4 gap-y-3"
+        >
+          <Avatar user={r.user} />
+
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-ink text-sm truncate">{r.user.name}</div>
+            <div className="text-xs text-ink/50 truncate">{r.user.email}</div>
+            <div className="text-xs text-ink/70 mt-1">
+              Licence <span className="font-mono font-bold text-ink">{r.licenseNumber}</span>
+            </div>
+            <div className="text-[11px] text-ink/40 mt-0.5">
+              Submitted {new Date(r.createdAt).toLocaleDateString()} · {r.user._count.listings}{' '}
+              listing{r.user._count.listings === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => review(r.id, false)}
+              disabled={busy === r.id}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-ink/15 text-xs font-bold text-ink/60 hover:border-danger hover:text-danger transition-all disabled:opacity-50"
+            >
+              <X size={13} />
+              Decline
+            </button>
+            <button
+              onClick={() => review(r.id, true)}
+              disabled={busy === r.id}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-navy-dark text-xs font-bold hover:bg-gold-dark transition-all disabled:opacity-50"
+            >
+              <Check size={13} />
+              Approve
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* --------------------------------------------------------------------- users */
+
+function Users({ token, currentUserId }: { token: string; currentUserId: string }) {
+  const [search, setSearch] = useState('')
+  const [items, setItems] = useState<AdminUser[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(
+    (q: string) => {
+      fetchAdminUsers(token, q)
+        .then((d) => {
+          setItems(d.items)
+          setTotal(d.total)
+        })
+        .catch((e: Error) => setError(e.message))
+    },
+    [token],
+  )
+
+  // Debounced, so typing a name is one query rather than one per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => load(search), 300)
+    return () => window.clearTimeout(timer)
+  }, [search, load])
+
+  async function toggleSuspension(u: AdminUser) {
+    const suspending = !u.suspendedAt
+    const reason = suspending
+      ? window.prompt(`Why is ${u.name} being suspended?`) || undefined
+      : undefined
+    if (suspending && !reason) return
+
+    setBusy(u.id)
+    setError('')
+    try {
+      await setUserSuspension(token, u.id, suspending, reason)
+      load(search)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update that account')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div>
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/35" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email…"
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-ink/15 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold"
+        />
+      </div>
+
+      {error && <p className="text-sm text-danger mb-3">{error}</p>}
+
+      {!items ? (
+        <p className="text-sm text-ink/40 py-10 text-center">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-ink/40 py-10 text-center">No accounts match.</p>
+      ) : (
+        <>
+          <p className="text-xs text-ink/40 mb-2">
+            Showing {items.length} of {total}
+          </p>
+
+          <div className="space-y-2">
+            {items.map((u) => (
+              <div
+                key={u.id}
+                className="bg-card rounded-2xl border border-ink/10 p-3.5 flex flex-wrap items-center gap-x-3 gap-y-2.5"
+              >
+                <Avatar user={u} />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-ink text-sm truncate">{u.name}</span>
+                    {u.isVerified && <BadgeCheck size={13} className="text-gold-dark shrink-0" />}
+                    {u.role === 'admin' && (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-ink/10 text-ink/60">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-ink/50 truncate">{u.email}</div>
+                  <div className="text-[11px] text-ink/40 mt-0.5">
+                    {u._count.listings} listing{u._count.listings === 1 ? '' : 's'} ·{' '}
+                    {u._count.reels} reel{u._count.reels === 1 ? '' : 's'} · joined{' '}
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </div>
+                  {u.suspendedAt && (
+                    <div className="text-[11px] text-danger mt-1">
+                      Suspended{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
+                    </div>
+                  )}
+                </div>
+
+                {/* No button for admins or for yourself: the server refuses both, so
+                    offering one would only ever produce an error. */}
+                {u.role !== 'admin' && u.id !== currentUserId && (
+                  <button
+                    onClick={() => toggleSuspension(u)}
+                    disabled={busy === u.id}
+                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                      u.suspendedAt
+                        ? 'bg-ink text-app hover:bg-ink/85'
+                        : 'border border-ink/15 text-ink/60 hover:border-danger hover:text-danger'
+                    }`}
+                  >
+                    {u.suspendedAt ? <Check size={13} /> : <Ban size={13} />}
+                    {u.suspendedAt ? 'Restore' : 'Suspend'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Avatar({ user }: { user: { name: string; avatarUrl?: string | null } }) {
+  if (user.avatarUrl) {
+    return (
+      <img
+        src={assetUrl(user.avatarUrl)}
+        alt=""
+        className="w-10 h-10 rounded-full object-cover shrink-0 border border-ink/10"
+      />
+    )
+  }
+
+  return (
+    <span className="w-10 h-10 rounded-full bg-ink/10 text-ink/60 flex items-center justify-center text-sm font-black shrink-0">
+      {user.name?.[0]?.toUpperCase() ?? 'R'}
+    </span>
+  )
+}
