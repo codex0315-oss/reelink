@@ -25,7 +25,11 @@ services:
     rootDir: server
     # prisma generate must run before the build: the Nest build imports the generated
     # client, and node_modules is rebuilt from scratch on every deploy.
-    buildCommand: npm ci && npx prisma generate && npm run build
+    # --include=dev is required, not optional. NODE_ENV is production below, which makes
+    # npm skip devDependencies — and @nestjs/cli, typescript and prisma all live there.
+    # Without it the build dies with "nest: not found" (exit 127). Only the build needs
+    # them; the compiled output in dist/ runs on the production dependencies alone.
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     # Migrations run at startup rather than in a pre-deploy step, because Render does
     # not offer pre-deploy commands on the free plan. `migrate deploy` is idempotent —
     # it applies only what is missing — so running it on every boot is safe. It is also
