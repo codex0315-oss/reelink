@@ -1,0 +1,74 @@
+# Render blueprint for the Reelink API.
+#
+# The client is not here — it deploys separately to Vercel as a static build. This
+# file describes only the NestJS server and the database behind it.
+#
+# To use it: Render dashboard -> New -> Blueprint -> pick this repository. Render reads
+# this file, creates both services, and wires DATABASE_URL between them automatically.
+# Anything marked `sync: false` is a secret you fill in yourself in the dashboard; those
+# deliberately have no values here because this file is committed to a public repo.
+
+databases:
+  - name: reelink-db
+    databaseName: reelink
+    user: reelink
+    # Free Postgres on Render expires after 30 days and is deleted. Fine for a demo,
+    # but move to a paid instance (or Neon/Supabase) before real agents rely on it.
+    plan: free
+
+services:
+  - type: web
+    name: reelink-api
+    runtime: node
+    plan: free
+    # The server lives in a subdirectory of the repo; everything below runs from here.
+    rootDir: server
+    # prisma generate must run before the build: the Nest build imports the generated
+    # client, and node_modules is rebuilt from scratch on every deploy.
+    buildCommand: npm ci && npx prisma generate && npm run build
+    # Migrations run before the new instance takes traffic, not during the build —
+    # the build step has no database attached.
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /listings
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects the connection string from the database above.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reelink-db
+          property: connectionString
+      # Signs access tokens. Generated once by Render and then left alone — rotating it
+      # signs everyone out.
+      - key: JWT_SECRET
+        generateValue: true
+      # Behind Render's proxy, so the rate limiter must read X-Forwarded-For. Without
+      # this every request appears to come from the proxy and shares one bucket.
+      - key: TRUST_PROXY
+        value: 'true'
+      # Chrome fetches listing photos back over HTTP while rendering a reel, so this
+      # has to be the public URL of this service — not localhost.
+      - key: SELF_URL
+        sync: false
+      # Browser origins allowed to call this API: the Vercel URL, comma separated.
+      - key: CORS_ORIGINS
+        sync: false
+      # AI descriptions, reel scripts and Amicus. Free tier at console.groq.com.
+      - key: GROQ_API_KEY
+        sync: false
+      # Transactional email: password resets, verification codes, offline alerts.
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: BREVO_SMTP_LOGIN
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Reelink
+      # Rendering is CPU-bound and the free instance has little of it. One at a time,
+      # at 720x1280, keeps a render from exhausting the container's memory.
+      - key: REEL_CONCURRENCY
+        value: '1'
+      - key: REEL_SCALE
+        value: '0.667'
