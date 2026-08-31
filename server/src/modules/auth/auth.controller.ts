@@ -13,10 +13,10 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage, FileFilterCallback } from 'multer';
-import { extname } from 'path';
+import { memoryStorage, FileFilterCallback } from 'multer';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
+import { StorageService } from '../storage/storage.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -37,7 +37,10 @@ const avatarFileFilter = (
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private storage: StorageService,
+  ) {}
 
   // Five new accounts an hour from one source is already generous for real use,
   // and it stops a script filling the user table.
@@ -99,23 +102,22 @@ export class AuthController {
   @Patch('profile')
   @UseInterceptors(
     FileInterceptor('avatar', {
-      storage: diskStorage({
-        destination: './uploads/avatars',
-        filename: (req, file, cb) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-          cb(null, unique);
-        },
-      }),
+      // Held in memory so StorageService decides where it lands. On disk it would not
+      // survive a restart, which is exactly what users saw: an avatar showed after
+      // upload and was gone by the next login.
+      storage: memoryStorage(),
       fileFilter: avatarFileFilter,
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  updateProfile(
+  async updateProfile(
     @Req() req: { user: { userId: string } },
     @Body() dto: UpdateProfileDto,
     @UploadedFile() avatar?: Express.Multer.File,
   ) {
-    const avatarUrl = avatar ? `/uploads/avatars/${avatar.filename}` : undefined;
+    const avatarUrl = avatar
+      ? await this.storage.save('avatars', avatar)
+      : undefined;
     return this.authService.updateProfile(req.user.userId, dto, avatarUrl);
   }
 

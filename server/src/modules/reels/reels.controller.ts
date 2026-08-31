@@ -14,14 +14,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage, FileFilterCallback } from 'multer';
-import { extname, join, basename } from 'path';
+import { memoryStorage, FileFilterCallback } from 'multer';
+import { join, basename } from 'path';
 import { existsSync } from 'fs';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ReelsService } from './reels.service';
 import { QuickReelDto } from './dto/quick-reel.dto';
 import { listTemplates } from './reel-templates';
+import { StorageService } from '../storage/storage.service';
 
 const photoFileFilter = (
   req: Request,
@@ -38,7 +39,10 @@ const photoFileFilter = (
 @UseGuards(AuthGuard('jwt'))
 @Controller('reels')
 export class ReelsController {
-  constructor(private reelsService: ReelsService) {}
+  constructor(
+    private reelsService: ReelsService,
+    private storage: StorageService,
+  ) {}
 
   /** Template list is public to the app so the picker renders from one source of truth. */
   @Get('templates')
@@ -70,25 +74,19 @@ export class ReelsController {
   @Post('quick')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
-      storage: diskStorage({
-        destination: './uploads/listings',
-        filename: (req, file, cb) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-          cb(null, unique);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: photoFileFilter,
       // Matches the listing uploader; every photo here is rendered into a video, so
-      // an unbounded file is both a disk and a render-memory problem.
+      // an unbounded file is both a memory and a render problem.
       limits: { fileSize: 15 * 1024 * 1024, files: 10 },
     }),
   )
-  generateQuick(
+  async generateQuick(
     @Req() req: { user: { userId: string } },
     @Body() dto: QuickReelDto,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    const photoUrls = (files ?? []).map((f) => `/uploads/listings/${f.filename}`);
+    const photoUrls = await this.storage.saveAll('listings', files);
     return this.reelsService.generateQuickReel(req.user.userId, dto, photoUrls);
   }
 

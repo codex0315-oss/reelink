@@ -13,6 +13,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { QuickReelDto } from './dto/quick-reel.dto';
 import { Json2VideoService } from './json2video.service';
 import { HiggsfieldService } from './higgsfield.service';
+import { StorageService } from '../storage/storage.service';
 import { ReelSource } from './reel-source.type';
 import { progressFor, type ReelPhase } from './reel-progress';
 import {
@@ -29,7 +30,7 @@ import {
   type HeadlessBrowser,
 } from '@remotion/renderer';
 import * as path from 'path';
-import { unlink, writeFile } from 'fs/promises';
+import { readFile, unlink, writeFile } from 'fs/promises';
 import { existsSync, watch } from 'fs';
 import { execFile } from 'child_process';
 
@@ -56,14 +57,6 @@ function extractAudio(input: string, output: string) {
   });
 }
 
-/** Rendered videos live on disk, so a deleted or replaced reel must clean up after itself. */
-async function deleteReelFile(videoUrl: string) {
-  try {
-    await unlink(path.join(process.cwd(), 'uploads', 'reels', path.basename(videoUrl)));
-  } catch {
-    // already gone, or never written
-  }
-}
 
 // Remotion serves the bundle from its own HTTP server, scanning up from port 3000.
 // On Windows that scan can wrongly consider 3000 free while Nest holds it (Nest binds
@@ -74,6 +67,12 @@ const REMOTION_PORT = Number(process.env.REMOTION_PORT ?? 3999);
 // Chrome fetches the listing photos back over HTTP while rendering, so it needs an
 // absolute URL pointing at this API.
 const SELF_URL = process.env.SELF_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+
+/**
+ * Photos may be a relative `/uploads/...` path or an absolute object-storage URL
+ * depending on the backend, and Chrome needs an absolute one either way.
+ */
+const absolute = (url: string) => (url.startsWith('http') ? url : `${SELF_URL}${url}`);
 
 // 'remotion' renders locally: free and watermark-free, but it needs real CPU and RAM
 // on this machine. 'json2video' renders in the cloud and adds an AI voiceover, at the
@@ -204,7 +203,31 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     private notificationsService: NotificationsService,
     private json2VideoService: Json2VideoService,
     private higgsfield: HiggsfieldService,
+    private storage: StorageService,
   ) {}
+
+  /**
+   * Moves a finished render out of the container and returns the URL to record.
+   *
+   * The local file is deleted once it is safely in the bucket — it is a render artefact,
+   * not the copy anyone plays. On local disk there is nothing to move: the renderer
+   * already wrote it where it is served from.
+   */
+  private async publishRender(
+    outputLocation: string,
+    outputFileName: string,
+  ): Promise<string> {
+    if (!this.storage.isRemote) return `/uploads/reels/${outputFileName}`;
+
+    const url = await this.storage.saveBuffer(
+      'reels',
+      outputFileName,
+      await readFile(outputLocation),
+      'video/mp4',
+    );
+    await unlink(outputLocation).catch(() => undefined);
+    return url;
+  }
 
   /**
    * Renders run in this process and are not resumable, so any reel still marked
@@ -479,7 +502,7 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Drop the old file now; a fresh one is written under a new name.
-    if (reel.videoUrl) await deleteReelFile(reel.videoUrl);
+    if (reel.videoUrl) await this.storage.remove(reel.videoUrl);
 
     await this.prisma.reel.update({
       where: { id: reelId },
@@ -496,18 +519,10 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
 
     await this.prisma.reel.delete({ where: { id: reelId } });
 
-    if (reel.videoUrl) await deleteReelFile(reel.videoUrl);
+    if (reel.videoUrl) await this.storage.remove(reel.videoUrl);
     // Only a standalone reel owns its photos; a listing's photos belong to the listing.
     if (!reel.listingId && reel.photoUrls.length > 0) {
-      await Promise.all(
-        reel.photoUrls.map(async (url) => {
-          try {
-            await unlink(path.join(process.cwd(), 'uploads', 'listings', path.basename(url)));
-          } catch {
-            // already gone
-          }
-        }),
-      );
+      await Promise.all(reel.photoUrls.map((url) => this.storage.remove(url)));
     }
 
     return { deleted: true };
@@ -591,9 +606,14 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     let heroClip: string | null = null;
     if (useAi && listing.photoUrls.length > 0) {
       this.emitProgress(userId, reelId, 'cinematic');
-      heroClip = await this.higgsfield.generateHeroClip(
-        path.join(process.cwd(), 'uploads', 'listings', path.basename(listing.photoUrls[0])),
-      );
+      const source = listing.photoUrls[0];
+      const buffer = await this.storage.read(source);
+      if (buffer) {
+        heroClip = await this.higgsfield.generateHeroClip({
+          buffer,
+          name: path.basename(source),
+        });
+      }
     }
 
     if (REEL_RENDERER === 'json2video') {
@@ -610,7 +630,11 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const videoUrl = `/uploads/reels/${outputFileName}`;
+    // Both renderers write to the local filesystem, so the finished file is moved into
+    // storage here rather than at the point of render. On a container host that local
+    // copy disappears with the next restart, which would leave a 'done' reel whose
+    // video 404s.
+    const videoUrl = await this.publishRender(outputLocation, outputFileName);
 
     const { count } = await this.prisma.reel.updateMany({
       where: { id: reelId },
@@ -752,9 +776,7 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     reelId: string,
     heroClip?: string | null,
   ) {
-    const absolutePhotoUrls = listing.photoUrls.map(
-      (url: string) => `${SELF_URL}${url}`,
-    );
+    const absolutePhotoUrls = listing.photoUrls.map(absolute);
 
     // Narration is optional here: Groq's TTS model needs one-time terms acceptance,
     // so until that happens the reel simply renders without a voice track.
@@ -790,7 +812,7 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
         // is watched — so they are sent whether or not a voice track exists.
         script,
         // Chrome fetches this back over HTTP during the render, same as the photos.
-        heroClip: heroClip ? `${SELF_URL}${heroClip}` : null,
+        heroClip: heroClip ? absolute(heroClip) : null,
         ...toRemotionProps(template, listing, hook, agent, logoSrc),
       },
     });

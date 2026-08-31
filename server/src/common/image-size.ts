@@ -17,13 +17,21 @@ export const PANORAMA_MIN_RATIO = 1.9;
  * Doing this here avoids pulling in an image library for two numbers.
  */
 export async function readImageSize(path: string): Promise<ImageSize | null> {
-  let buf: Buffer;
   try {
-    buf = await readFile(path);
+    return readImageSizeFromBuffer(await readFile(path));
   } catch {
     return null;
   }
+}
 
+/**
+ * The same parse against bytes already in hand.
+ *
+ * Uploads are held in memory now rather than written to disk first, so the shape of a
+ * file has to be checkable before anything is stored — a rejected panorama should never
+ * reach the bucket at all.
+ */
+export function readImageSizeFromBuffer(buf: Buffer): ImageSize | null {
   // PNG: IHDR is always the first chunk, width/height at fixed offsets.
   if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) {
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };

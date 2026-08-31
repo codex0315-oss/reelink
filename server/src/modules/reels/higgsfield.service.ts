@@ -73,17 +73,22 @@ export class HiggsfieldService {
   }
 
   /**
-   * @param photoPath absolute path to the source image on disk
+   * @param photo the source image's bytes and its original name, which is only used to
+   *   pick a content type. Bytes rather than a path: with uploads in object storage the
+   *   photo is not on this machine's filesystem at all.
    * @returns a `/uploads/clips/...` path, or null if generation was not possible
    */
-  async generateHeroClip(photoPath: string): Promise<string | null> {
+  async generateHeroClip(photo: {
+    buffer: Buffer;
+    name: string;
+  }): Promise<string | null> {
     if (!this.isConfigured) {
       this.logger.log('Higgsfield keys not set — rendering with stills only.');
       return null;
     }
 
     try {
-      const imageUrl = await this.uploadImage(photoPath);
+      const imageUrl = await this.uploadImage(photo);
       if (!imageUrl) return null;
 
       const statusUrl = await this.submit(imageUrl);
@@ -106,8 +111,11 @@ export class HiggsfieldService {
    * from localhost is unreachable to it. The presigned upload puts the bytes in their
    * storage instead, which is what makes this work in development at all.
    */
-  private async uploadImage(photoPath: string): Promise<string | null> {
-    const contentType = contentTypeFor(photoPath);
+  private async uploadImage(photo: {
+    buffer: Buffer;
+    name: string;
+  }): Promise<string | null> {
+    const contentType = contentTypeFor(photo.name);
 
     const ticketRes = await fetch(`${API_BASE}/files/generate-upload-url`, {
       method: 'POST',
@@ -121,7 +129,6 @@ export class HiggsfieldService {
     }
 
     const ticket = (await ticketRes.json()) as UploadTicket;
-    const body = await readFile(photoPath);
 
     // Credentials must not travel to the storage host — it is a different origin and
     // the presigned URL is already the authorisation.
@@ -132,7 +139,7 @@ export class HiggsfieldService {
         'x-amz-tagging': 'retention=temporary',
         ...(ticket.headers ?? {}),
       },
-      body: new Uint8Array(body),
+      body: new Uint8Array(photo.buffer),
     });
 
     if (!putRes.ok) {

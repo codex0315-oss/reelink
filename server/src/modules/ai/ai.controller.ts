@@ -13,11 +13,11 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage, FileFilterCallback } from 'multer';
-import { extname } from 'path';
+import { memoryStorage, FileFilterCallback } from 'multer';
 import { Request } from 'express';
 import { AiService } from './ai.service';
 import { AmicusService } from './amicus.service';
+import { StorageService } from '../storage/storage.service';
 
 const imageFileFilter = (
   req: Request,
@@ -37,6 +37,7 @@ export class AiController {
   constructor(
     private aiService: AiService,
     private amicusService: AmicusService,
+    private storage: StorageService,
   ) {}
 
   // Every call is a paid Groq completion, so this is capped per account.
@@ -71,23 +72,19 @@ export class AiController {
   @Post('chat')
   @UseInterceptors(
     FilesInterceptor('images', 4, {
-      storage: diskStorage({
-        destination: './uploads/chat',
-        filename: (req, file, cb) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
-          cb(null, unique);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: imageFileFilter,
       limits: { fileSize: 8 * 1024 * 1024 },
     }),
   )
-  chat(
+  async chat(
     @Req() req: { user: { userId: string } },
     @Body() body: { message?: string },
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    const imageUrls = (files ?? []).map((f) => `/uploads/chat/${f.filename}`);
+    // Stored rather than kept in memory for the one call: the URLs go into the chat
+    // history, so the images have to still be there when the thread is reopened.
+    const imageUrls = await this.storage.saveAll('chat', files);
     return this.amicusService.ask(req.user.userId, body.message ?? '', imageUrls);
   }
 }

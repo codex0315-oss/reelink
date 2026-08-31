@@ -1,11 +1,12 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { allowedOrigins } from './common/cors-origins';
+import { StorageService } from './modules/storage/storage.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -59,6 +60,13 @@ async function bootstrap() {
   // instance the reel renderer keeps would survive the process and leave a tree that
   // `nest start --watch` cannot kill on the next reload.
   app.enableShutdownHooks();
+
+  // Which backend uploads landed in is the first thing worth knowing when a photo goes
+  // missing, and it is decided by env vars rather than by anything visible in the code.
+  Logger.log(
+    `Uploads: ${app.get(StorageService).describe()}`,
+    'Bootstrap',
+  );
 
   await app.listen(process.env.PORT ?? 3000);
 }

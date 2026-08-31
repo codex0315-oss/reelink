@@ -21,6 +21,11 @@ import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { StorageService } from '../storage/storage.service';
+import {
+  readImageSizeFromBuffer,
+  isPanoramaShaped,
+  PANORAMA_MIN_RATIO,
+} from '../../common/image-size';
 
 const photoFileFilter = (
   req: Request,
@@ -66,6 +71,35 @@ type UploadedListingFiles = {
   panoramas?: Express.Multer.File[];
 };
 
+/**
+ * A normal photo dropped into the 360 viewer looks broken, so the shape is checked
+ * before anything is stored — rejecting here means nothing has to be cleaned up
+ * afterwards, and a bad file never reaches the bucket. The message says exactly what
+ * was wrong with which file.
+ */
+function assertPanoramas(files?: Express.Multer.File[]) {
+  const bad: string[] = [];
+
+  for (const file of files ?? []) {
+    const size = readImageSizeFromBuffer(file.buffer);
+    if (!isPanoramaShaped(size)) {
+      bad.push(
+        size
+          ? `${file.originalname} (${size.width}×${size.height})`
+          : file.originalname,
+      );
+    }
+  }
+
+  if (bad.length > 0) {
+    throw new BadRequestException(
+      `These are not panoramas: ${bad.join(', ')}. A 360 photo must be at least ` +
+        `${PANORAMA_MIN_RATIO}× wider than it is tall — use your phone's Panorama mode ` +
+        `or a 360 camera.`,
+    );
+  }
+}
+
 @Controller('listings')
 export class ListingsController {
   constructor(
@@ -82,6 +116,8 @@ export class ListingsController {
     @Body() dto: CreateListingDto,
     @UploadedFiles() files: UploadedListingFiles,
   ) {
+    assertPanoramas(files?.panoramas);
+
     // Stored before the row is written, so a storage failure means no listing rather
     // than a listing row pointing at files that were never saved.
     const photoUrls = await this.storage.saveAll('listings', files?.photos);
@@ -138,6 +174,9 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
     @UploadedFiles() files: UploadedListingFiles,
   ) {
+    // Only the newly uploaded ones are checked; the kept ones already passed.
+    assertPanoramas(files?.panoramas);
+
     const newPhotoUrls = await this.storage.saveAll('listings', files?.photos);
     const photoUrls = [...(dto.existingPhotoUrls ?? []), ...newPhotoUrls];
 

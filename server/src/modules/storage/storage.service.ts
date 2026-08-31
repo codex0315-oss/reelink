@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { extname, basename, join } from 'path';
 import { randomUUID } from 'crypto';
 
@@ -19,53 +23,62 @@ export type UploadFolder =
  *
  * Two backends behind one interface. Local disk is the default and is what runs on a
  * developer machine — no account, no credentials, no network. Object storage takes over
- * as soon as R2 credentials are present, which is what production needs: a container
+ * as soon as S3 credentials are present, which is what production needs: a container
  * filesystem is wiped on every restart, so a file written there survives only until the
  * instance sleeps. Verified in production before this existed — a listing photo returned
  * 404 while its database row still pointed at it, and profile pictures vanished on the
  * next login.
  *
  * Both return a URL that goes straight into the database. Local returns a relative
- * `/uploads/...` path served by the API; R2 returns an absolute URL served by Cloudflare.
- * The client's assetUrl() already passes absolute URLs through untouched, so nothing on
- * the front end has to know which backend produced a given file.
+ * `/uploads/...` path served by the API; object storage returns an absolute URL served by
+ * the provider. The client's assetUrl() already passes absolute URLs through untouched,
+ * so nothing on the front end has to know which backend produced a given file.
  */
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
   private client: S3Client | null = null;
 
-  /** True when R2 is configured; false means local disk. */
+  /** True when object storage is configured; false means local disk. */
   get isRemote() {
     return !!(
-      process.env.R2_ACCOUNT_ID &&
-      process.env.R2_ACCESS_KEY_ID &&
-      process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET
+      process.env.S3_ENDPOINT &&
+      process.env.S3_ACCESS_KEY_ID &&
+      process.env.S3_SECRET_ACCESS_KEY &&
+      process.env.S3_BUCKET
     );
   }
 
   private get bucket() {
-    return process.env.R2_BUCKET as string;
+    return process.env.S3_BUCKET;
   }
 
   /**
-   * The base the browser fetches from. R2 buckets are private by default; this is
-   * either the bucket's public r2.dev address or a custom domain in front of it.
+   * The base the browser fetches from. This is the bucket's public URL, which differs
+   * by provider: Supabase serves /storage/v1/object/public/<bucket>, R2 a pub-*.r2.dev
+   * host. Supplied whole rather than assembled here.
    */
   private get publicBase() {
-    return (process.env.R2_PUBLIC_URL ?? '').replace(/\/+$/, '');
+    return (process.env.S3_PUBLIC_URL ?? '').replace(/\/+$/, '');
   }
 
   private s3() {
-    // R2 speaks the S3 API at an account-specific endpoint. 'auto' is the only region
-    // it accepts — it has no regional endpoints in the AWS sense.
     this.client ??= new S3Client({
-      region: 'auto',
-      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      // Supabase issues a real region with its S3 keys (eg. ap-southeast-1) and rejects
+      // a mismatch, because the region is part of what the request signature covers.
+      // Cloudflare R2 has no regions and wants the literal 'auto', which is the default
+      // here so R2 works with the region left unset.
+      region: process.env.S3_REGION || 'auto',
+      // A full URL, not an account id. Supabase and R2 have different endpoint shapes,
+      // and asking for the whole thing keeps this file from having to know which
+      // provider it is talking to.
+      endpoint: process.env.S3_ENDPOINT,
+      // Supabase requires path-style addressing: the bucket goes in the path rather
+      // than becoming a subdomain. Virtual-host style resolves to nothing there.
+      forcePathStyle: true,
       credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID as string,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY as string,
+        accessKeyId: process.env.S3_ACCESS_KEY_ID,
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
       },
     });
     return this.client;
@@ -139,6 +152,37 @@ export class StorageService {
   }
 
   /**
+   * Reads a stored file back.
+   *
+   * Needed because some work happens on the bytes rather than the URL — the cinematic
+   * clip has to re-upload the source photo to Higgsfield, and it can no longer assume
+   * that photo is sitting on the local filesystem. Remote objects are fetched over
+   * HTTP rather than through the S3 client: the bucket is public, so a plain GET is
+   * both simpler and one less signed request. Returns null rather than throwing, since
+   * every caller has a path that works without the bytes.
+   */
+  async read(url: string): Promise<Buffer | null> {
+    if (!url) return null;
+
+    try {
+      if (!url.startsWith('http')) {
+        const parts = url.split('/').filter(Boolean);
+        const folder = parts[parts.length - 2] ?? '';
+        return await readFile(
+          join(process.cwd(), 'uploads', basename(folder), basename(url)),
+        );
+      }
+
+      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      this.logger.warn(`could not read ${url}: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * Removes a stored file. Never throws: cleanup runs after the database row is already
    * gone, and failing here would turn a tidy-up into a failed request.
    */
@@ -156,23 +200,29 @@ export class StorageService {
         return;
       }
 
+      // Keys are always exactly `folder/filename`. Taking the last two path segments
+      // works even when the URL does not sit under the configured public base — a
+      // provider change, or a row written before this setting was what it is now.
+      // The whole pathname would be wrong there: Supabase prefixes its public URLs
+      // with /storage/v1/object/public/<bucket>/, which is not part of the key.
       const key = url.startsWith(this.publicBase)
         ? url.slice(this.publicBase.length + 1)
-        : new URL(url).pathname.replace(/^\/+/, '');
+        : new URL(url).pathname.split('/').filter(Boolean).slice(-2).join('/');
 
       await this.s3().send(
         new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
       );
-    } catch {
+    } catch (err) {
       // Already gone, never written, or a transient failure. An orphaned object costs
       // a fraction of a cent; a failed delete request costs the user their action.
+      this.logger.debug(`could not remove ${url}: ${(err as Error).message}`);
     }
   }
 
   /** Logged once at boot so it is obvious which backend a deployment is using. */
   describe() {
     return this.isRemote
-      ? `Cloudflare R2 (${this.bucket})`
+      ? `object storage (${this.bucket})`
       : 'local disk (uploads/) — files are lost on restart in a container';
   }
 }

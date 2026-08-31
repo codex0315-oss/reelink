@@ -2,35 +2,13 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
-import { unlink } from 'fs/promises';
-import { join, basename } from 'path';
-import {
-  readImageSize,
-  isPanoramaShaped,
-  PANORAMA_MIN_RATIO,
-} from '../../common/image-size';
-
-// Uploaded files live on disk outside the database, so removing a row is not enough -
-// without this the uploads folder grows forever as listings are edited and deleted.
-// basename() keeps a stored path from ever pointing outside its upload folder.
-async function deleteUploads(folder: 'listings' | 'reels' | 'panoramas', urls: string[]) {
-  await Promise.all(
-    urls.map(async (url) => {
-      try {
-        await unlink(join(process.cwd(), 'uploads', folder, basename(url)));
-      } catch {
-        // already gone, or never written - nothing to clean up
-      }
-    }),
-  );
-}
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class ListingsService {
@@ -38,34 +16,15 @@ export class ListingsService {
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
     private aiService: AiService,
+    private storage: StorageService,
   ) {}
 
   /**
-   * A normal photo dropped into the 360 viewer looks broken, so the shape is checked
-   * before it is ever stored. Rejected files are removed rather than left orphaned on
-   * disk, and the message says exactly what was wrong with which file.
+   * Stored files live outside the database, so removing a row is not enough — without
+   * this, every edit and deletion leaves its uploads behind forever.
    */
-  private async assertPanoramas(panoramaUrls: string[]) {
-    const bad: string[] = [];
-
-    for (const url of panoramaUrls) {
-      const path = join(process.cwd(), 'uploads', 'panoramas', basename(url));
-      const size = await readImageSize(path);
-      if (!isPanoramaShaped(size)) {
-        bad.push(
-          size ? `${basename(url)} (${size.width}×${size.height})` : basename(url),
-        );
-      }
-    }
-
-    if (bad.length > 0) {
-      await deleteUploads('panoramas', panoramaUrls);
-      throw new BadRequestException(
-        `These are not panoramas: ${bad.join(', ')}. A 360 photo must be at least ` +
-          `${PANORAMA_MIN_RATIO}× wider than it is tall — use your phone's Panorama mode ` +
-          `or a 360 camera.`,
-      );
-    }
+  private async deleteUploads(urls: string[]) {
+    await Promise.all(urls.map((url) => this.storage.remove(url)));
   }
 
   async create(
@@ -74,9 +33,6 @@ export class ListingsService {
     photoUrls: string[],
     panoramaUrls: string[] = [],
   ) {
-    // Before the row is written, so a rejected panorama leaves nothing behind.
-    await this.assertPanoramas(panoramaUrls);
-
     const listing = await this.prisma.listing.create({
       data: {
         panoramaUrls,
@@ -257,12 +213,6 @@ export class ListingsService {
     if (!listing) throw new NotFoundException('Listing not found');
     if (listing.userId !== userId) throw new ForbiddenException('Not your listing');
 
-    // Only the newly uploaded ones need checking; the kept ones already passed.
-    if (panoramaUrls) {
-      const added = panoramaUrls.filter((url) => !listing.panoramaUrls.includes(url));
-      await this.assertPanoramas(added);
-    }
-
     const { existingPhotoUrls, existingPanoramaUrls, ...rest } = dto;
     const updated = await this.prisma.listing.update({
       where: { id },
@@ -276,13 +226,13 @@ export class ListingsService {
     // Photos the user removed while editing are no longer referenced anywhere.
     if (photoUrls) {
       const dropped = listing.photoUrls.filter((url) => !photoUrls.includes(url));
-      await deleteUploads('listings', dropped);
+      await this.deleteUploads(dropped);
 
     }
 
     if (panoramaUrls) {
       const dropped = listing.panoramaUrls.filter((url) => !panoramaUrls.includes(url));
-      await deleteUploads('panoramas', dropped);
+      await this.deleteUploads(dropped);
 
       // The labels are positional, so any change to the set invalidates all of them.
       const changed =
@@ -310,9 +260,9 @@ export class ListingsService {
     const deleted = await this.prisma.listing.delete({ where: { id } });
 
     await Promise.all([
-      deleteUploads('listings', listing.photoUrls),
-      deleteUploads('panoramas', listing.panoramaUrls),
-      deleteUploads('reels', reelVideos),
+      this.deleteUploads(listing.photoUrls),
+      this.deleteUploads(listing.panoramaUrls),
+      this.deleteUploads(reelVideos),
     ]);
 
     return deleted;

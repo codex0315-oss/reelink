@@ -72,6 +72,24 @@ services:
         sync: false
       - key: MAIL_FROM_NAME
         value: Reelink
+      # Object storage for uploads. Required in production, not optional: Render's
+      # filesystem is ephemeral, so without these every uploaded photo and avatar is
+      # gone the next time the instance restarts while its database row still points
+      # at it. Supabase Storage by default; any S3-compatible bucket works.
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # The base the browser loads images from, which is a different host from the
+      # endpoint the server writes through.
+      - key: S3_PUBLIC_URL
+        sync: false
       # Rendering is CPU-bound and the free instance has little of it. One at a time,
       # at 720x1280, keeps a render from exhausting the container's memory.
       - key: REEL_CONCURRENCY
