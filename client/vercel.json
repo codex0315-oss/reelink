@@ -3,6 +3,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "//ignoreCommand": "Skips the build when the last commit changed nothing inside client/. This project shares a repository with the NestJS server, and without this every server-only commit would rebuild and redeploy an identical site. Exit 0 means skip; a non-zero exit (files did change) means build. Vercel's Root Directory setting must be set to `client` for the `.` here to mean the client folder.",
   "rewrites": [
     {
       "comment": "Every path serves index.html so React Router can resolve it in the browser. Without this, opening /dashboard directly — or refreshing while on it — returns a 404, because Vercel looks for a dashboard/index.html that a single-page build never produces. Real files are matched first, so hashed assets under /assets are unaffected.",
