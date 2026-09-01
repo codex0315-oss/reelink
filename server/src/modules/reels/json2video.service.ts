@@ -199,12 +199,13 @@ export class Json2VideoService {
         text(forLabel, 1330, 34, '#F0A93B', 700),
         text(price, 1400, 86, '#FFFFFF', 900),
         text(listing.title, 1520, 44, '#FFFFFF', 600),
-        {
-          type: 'voice',
-          text: voiceover,
-          voice: VOICE,
-          model: 'azure',
-        },
+        // Only when there is something to say. The script comes from a model that can
+        // return nothing — it fails soft elsewhere so the reel still renders silently —
+        // and a voice element with empty text is rejected at render time, which turns
+        // a missing voiceover into a failed reel instead of a quiet one.
+        ...(voiceover.trim()
+          ? [{ type: 'voice', text: voiceover, voice: VOICE, model: 'azure' }]
+          : []),
       ],
     };
   }
@@ -239,7 +240,13 @@ export class Json2VideoService {
 
       if (movie.status === 'done' && movie.url) return movie.url;
       if (movie.status === 'error') {
-        throw new Error(`JSON2Video render failed: ${movie.message ?? 'unknown error'}`);
+        // Their `message` is a catch-all — "Error rendering video" says nothing about
+        // which element was rejected. The rest of the payload carries the detail, so
+        // it goes in the error rather than being dropped on the floor.
+        throw new Error(
+          `JSON2Video render failed: ${movie.message ?? 'unknown error'} | response: ` +
+            JSON.stringify(json).slice(0, 1000),
+        );
       }
     }
 
