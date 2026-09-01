@@ -16,16 +16,43 @@ const VOICE = process.env.JSON2VIDEO_VOICE ?? 'en-US-EmmaMultilingualNeural';
  * Templates live in the Remotion renderer. This cloud path keeps one plain layout as
  * a fallback, so it stays useful without duplicating the template system.
  */
-function text(value: string, y: number, size: number, color: string, weight: number) {
+const TEXT_WIDTH = CANVAS.width - 120;
+/** Centred horizontally by arithmetic, since x has to be a number — see below. */
+const TEXT_X = (CANVAS.width - TEXT_WIDTH) / 2;
+
+/**
+ * One overlay line, absolutely positioned.
+ *
+ * Two things here are load-bearing, both found by rendering frames and looking at them.
+ *
+ * `x` must be a number. It used to be the string 'center', which their renderer does
+ * not treat as a position at all — it abandoned absolute placement and laid the
+ * elements out in flow instead, stacking the text *below* the photo on black rather
+ * than over it. That is what made finished reels look broken.
+ *
+ * `height` must be given. Without it the box spans the rest of the canvas and the text
+ * centres itself inside that, so every line landed in the middle of the frame no matter
+ * what `y` said — and lines drawn after the first were pushed out of view entirely.
+ */
+function text(
+  value: string,
+  y: number,
+  height: number,
+  size: number,
+  color: string,
+  weight: number,
+  font = 'Oswald',
+) {
   return {
     type: 'text',
     text: value,
     position: 'custom' as const,
-    x: 'center',
+    x: TEXT_X,
     y,
-    width: CANVAS.width - 120,
+    width: TEXT_WIDTH,
+    height,
     settings: {
-      'font-family': 'Oswald',
+      'font-family': font,
       'font-size': `${size}px`,
       'font-weight': String(weight),
       color,
@@ -33,6 +60,17 @@ function text(value: string, y: number, size: number, color: string, weight: num
     },
   };
 }
+
+/**
+ * The price line's font, which is not the display font the rest of the reel uses.
+ *
+ * Oswald has no ₱ glyph, and the renderer drops it silently rather than substituting
+ * one — so prices went out reading "12,000" with no currency at all, which for a
+ * Philippine listing is worse than wrong. Compared rendered frames across four faces:
+ * Roboto and Noto Sans both draw it, Lato shows a tofu box, Oswald shows nothing.
+ * Only this one line changes face, so the reel keeps Oswald's condensed look.
+ */
+const PRICE_FONT = 'Roboto';
 
 type UploadTicket = { success: boolean; uploadUrl: string; fileUrl: string };
 
@@ -196,10 +234,10 @@ export class Json2VideoService {
      * Voice stays at movie level: it has to span the whole reel, and it is unaffected.
      */
     const overlay = [
-      text(hook.toUpperCase(), 170, 62, '#F0A93B', 800),
-      text(forLabel, 1330, 34, '#F0A93B', 700),
-      text(price, 1400, 86, '#FFFFFF', 900),
-      text(listing.title, 1520, 44, '#FFFFFF', 600),
+      text(hook.toUpperCase(), 150, 180, 62, '#F0A93B', 800),
+      text(forLabel, 1310, 60, 34, '#F0A93B', 700),
+      text(price, 1380, 120, 86, '#FFFFFF', 900, PRICE_FONT),
+      text(listing.title, 1510, 80, 44, '#FFFFFF', 600),
     ];
 
     return {
@@ -210,7 +248,25 @@ export class Json2VideoService {
       scenes: photoUrls.map((src) => ({
         duration: seconds,
         transition: { type: 'xfade', style: 'fade', duration: 0.5 },
-        elements: [{ type: 'image', src, duration: seconds, zoom: 1 }, ...overlay],
+        elements: [
+          {
+            type: 'image',
+            src,
+            duration: seconds,
+            // A phone photo is landscape; the reel is 1080x1920. Left to itself the
+            // renderer keeps the photo's own shape and pins it to the top, leaving the
+            // bottom two thirds black — which is what agents were seeing. 'cover' fills
+            // the frame and crops the overflow, and the explicit box is what gives it a
+            // frame to fill.
+            resize: 'cover',
+            position: 'custom' as const,
+            x: 0,
+            y: 0,
+            width: CANVAS.width,
+            height: CANVAS.height,
+          },
+          ...overlay,
+        ],
       })),
       // Only when there is something to say. The script comes from a model that can
       // return nothing — it fails soft elsewhere so the reel still renders silently —
