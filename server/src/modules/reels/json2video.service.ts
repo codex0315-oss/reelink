@@ -182,6 +182,26 @@ export class Json2VideoService {
     const price = `₱${Number(listing.price).toLocaleString()}`;
     const forLabel = listing.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE';
 
+    /**
+     * Repeated into every scene rather than declared once at movie level.
+     *
+     * Movie-level text is the obvious way to keep branding fixed while the photos
+     * change under it, and it works — but only for a single-scene movie. Add a second
+     * scene and the render fails with "Error rendering video", naming nothing. Isolated
+     * by bisection against their API: three scenes alone render, three scenes plus a
+     * movie-level voice render, one scene plus all four texts renders, and three scenes
+     * plus any one movie-level text fails. Moving the same elements inside each scene
+     * renders correctly and looks identical, since every scene carries the same overlay.
+     *
+     * Voice stays at movie level: it has to span the whole reel, and it is unaffected.
+     */
+    const overlay = [
+      text(hook.toUpperCase(), 170, 62, '#F0A93B', 800),
+      text(forLabel, 1330, 34, '#F0A93B', 700),
+      text(price, 1400, 86, '#FFFFFF', 900),
+      text(listing.title, 1520, 44, '#FFFFFF', 600),
+    ];
+
     return {
       resolution: 'custom',
       width: CANVAS.width,
@@ -190,23 +210,15 @@ export class Json2VideoService {
       scenes: photoUrls.map((src) => ({
         duration: seconds,
         transition: { type: 'xfade', style: 'fade', duration: 0.5 },
-        elements: [{ type: 'image', src, duration: seconds, zoom: 1 }],
+        elements: [{ type: 'image', src, duration: seconds, zoom: 1 }, ...overlay],
       })),
-      // Movie-level elements overlay every scene, so the branding stays put while
-      // the photos change underneath.
-      elements: [
-        text(hook.toUpperCase(), 170, 62, '#F0A93B', 800),
-        text(forLabel, 1330, 34, '#F0A93B', 700),
-        text(price, 1400, 86, '#FFFFFF', 900),
-        text(listing.title, 1520, 44, '#FFFFFF', 600),
-        // Only when there is something to say. The script comes from a model that can
-        // return nothing — it fails soft elsewhere so the reel still renders silently —
-        // and a voice element with empty text is rejected at render time, which turns
-        // a missing voiceover into a failed reel instead of a quiet one.
-        ...(voiceover.trim()
-          ? [{ type: 'voice', text: voiceover, voice: VOICE, model: 'azure' }]
-          : []),
-      ],
+      // Only when there is something to say. The script comes from a model that can
+      // return nothing — it fails soft elsewhere so the reel still renders silently —
+      // and a voice element with empty text is rejected at render time, which turns
+      // a missing voiceover into a failed reel instead of a quiet one.
+      elements: voiceover.trim()
+        ? [{ type: 'voice', text: voiceover, voice: VOICE, model: 'azure' }]
+        : [],
     };
   }
 
