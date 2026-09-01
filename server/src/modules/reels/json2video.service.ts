@@ -107,8 +107,14 @@ export class Json2VideoService {
     }
   }
 
-  private async uploadPhoto(localUrl: string): Promise<string> {
-    const filename = basename(localUrl);
+  private async uploadPhoto(photoUrl: string): Promise<string> {
+    // A photo in object storage is already on a public URL their renderer can fetch,
+    // so there is nothing to copy — and, more to the point, nothing on this filesystem
+    // to copy from. Uploading it again would just be a round-trip to reproduce a URL
+    // that already exists.
+    if (/^https?:/.test(photoUrl)) return photoUrl;
+
+    const filename = basename(photoUrl);
     const buffer = await readFile(join(process.cwd(), 'uploads', 'listings', filename));
     const contentType = this.contentTypeFor(filename);
 
