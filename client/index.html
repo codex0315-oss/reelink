@@ -5,7 +5,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="/logo2.svg" />
+    <!-- logo2.svg is PNG data under an .svg name. Declaring it as image/svg+xml made
+         browsers reject it outright and fall back to the blank globe, so the tab never
+         showed the brand at all. favicon.png is the same R monogram cropped out of its
+         mostly-empty 500x500 canvas, where it covered 16% of the area and rendered
+         about 7px wide. -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reelink</title>
     <script>
