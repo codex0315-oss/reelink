@@ -150,6 +150,10 @@ export default function DashboardPage() {
   const [reelsView, setReelsView] = useState<'player' | 'feed'>('player')
   // Everyone's reels, as opposed to `reels`, which is only the user's own.
   const [feedReels, setFeedReels] = useState<Reel[]>([])
+  // Starts true so the first paint is a spinner, not "no reels" — the feed is now
+  // reachable with an empty library, and flashing an empty state at someone who is
+  // about to be shown a dozen reels reads as a broken screen.
+  const [feedLoading, setFeedLoading] = useState(true)
   // Set when a property's Message button opens a thread, so Messages can select it.
   const [openConversationId, setOpenConversationId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -226,9 +230,11 @@ export default function DashboardPage() {
   // else's reels while the user is looking at their own library.
   useEffect(() => {
     if (!token || activeTab !== 'reels' || reelsView !== 'feed') return
+    setFeedLoading(true)
     fetchReelsFeed(token)
       .then(setFeedReels)
       .catch(() => undefined)
+      .finally(() => setFeedLoading(false))
   }, [token, activeTab, reelsView])
 
   // The socket says when a render finishes, so the list refetches once at the right
@@ -711,26 +717,29 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
-                  {reels.length > 0 && (
-                    <div className="flex p-1 rounded-xl bg-ink/5 border border-ink/10">
-                      {([
-                        ['player', 'Player'],
-                        ['feed', 'Feed'],
-                      ] as const).map(([mode, label]) => (
-                        <button
-                          key={mode}
-                          onClick={() => setReelsView(mode)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            reelsView === mode
-                              ? 'bg-card text-ink shadow-sm'
-                              : 'text-ink/45 hover:text-ink'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* Shown even with an empty library. Gating this on the user's own
+                      reels meant a new agent — the person most helped by seeing what
+                      good reels look like — had no way to reach the community feed at
+                      all, because the toggle only appeared once they no longer needed
+                      it. */}
+                  <div className="flex p-1 rounded-xl bg-ink/5 border border-ink/10">
+                    {([
+                      ['player', 'Player'],
+                      ['feed', 'Feed'],
+                    ] as const).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        onClick={() => setReelsView(mode)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          reelsView === mode
+                            ? 'bg-card text-ink shadow-sm'
+                            : 'text-ink/45 hover:text-ink'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     onClick={() => setShowCreateReelModal(true)}
                     className="flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-xl bg-gold text-navy-dark text-sm font-semibold hover:bg-gold-dark transition-all active:scale-95"
@@ -741,27 +750,30 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {reels.length === 0 ? (
+              {/* The feed is checked before the empty library, so "no reels of your
+                  own" no longer hides everyone else's. */}
+              {reelsView === 'feed' ? (
+                <ReelsFeed
+                  reels={feedReels}
+                  loading={feedLoading}
+                  downloadingReel={downloadingReel}
+                  onDownload={handleDownloadReel}
+                  currentUserId={user?.id}
+                  onOpenListing={(id) => navigate(`/dashboard/property/${id}`)}
+                />
+              ) : reels.length === 0 ? (
                 <EmptyState
                   icon={PlayCircle}
                   title="No reels yet"
-                  description="Create a reel from one of your listings, or let Amicus AI build one from photos and details you provide."
+                  description="Create a reel from one of your listings, or let Amicus AI build one from photos and details you provide. Switch to Feed to see what other agents are posting."
                 />
-              ) : reelsView === 'player' ? (
+              ) : (
                 <ReelsPlayer
                   reels={reels}
                   downloadingReel={downloadingReel}
                   onDownload={handleDownloadReel}
                   onRegenerate={handleRegenerateReel}
                   onDelete={requestDeleteReel}
-                />
-              ) : (
-                <ReelsFeed
-                  reels={feedReels}
-                  downloadingReel={downloadingReel}
-                  onDownload={handleDownloadReel}
-                  currentUserId={user?.id}
-                  onOpenListing={(id) => navigate(`/dashboard/property/${id}`)}
                 />
               )}
             </div>

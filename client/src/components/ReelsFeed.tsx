@@ -34,6 +34,8 @@ type Props = {
   /** Used to tell the viewer's own reels from everyone else's. */
   currentUserId?: string
   onOpenListing?: (listingId: string) => void
+  /** Distinguishes "still fetching" from "nobody has posted a reel". */
+  loading?: boolean
 }
 
 
@@ -43,6 +45,7 @@ export default function ReelsFeed({
   onDownload,
   currentUserId,
   onOpenListing,
+  loading = false,
 }: Props) {
   // Browsers refuse to autoplay audio, so every reel starts muted and the viewer
   // opts into sound. One toggle for the whole feed, so it survives scrolling.
@@ -88,6 +91,33 @@ export default function ReelsFeed({
     if (!video) return
     if (video.paused) void video.play().catch(() => undefined)
     else video.pause()
+  }
+
+  // Both states keep the feed's own dark frame rather than falling back to the page's
+  // empty state, so switching to Feed does not change the shape of the screen while
+  // it loads or when there is genuinely nothing to show.
+  if (loading || reels.length === 0) {
+    return (
+      <div className="h-[calc(100dvh-14rem)] sm:h-[calc(100dvh-12rem)] rounded-2xl bg-navy-dark flex flex-col items-center justify-center text-center px-8">
+        {loading ? (
+          <>
+            <div className="w-9 h-9 border-2 border-gold border-t-transparent rounded-full animate-spin mb-4" />
+            <span className="text-sm text-white/60">Loading reels…</span>
+          </>
+        ) : (
+          <>
+            <div className="w-14 h-14 rounded-2xl bg-gold/10 border border-gold/20 mb-5 flex items-center justify-center">
+              <PlayCircle size={22} className="text-gold" />
+            </div>
+            <h2 className="font-bold text-white text-lg mb-2">No reels to show yet</h2>
+            <p className="text-sm text-white/50 leading-relaxed max-w-xs">
+              Nobody has published a reel yet. Create one from a listing and it will
+              appear here for other agents and buyers to see.
+            </p>
+          </>
+        )}
+      </div>
+    )
   }
 
   return (
