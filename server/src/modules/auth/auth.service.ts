@@ -12,6 +12,7 @@ import { LoginDto } from './dto/login.dto';
 import { MailService } from '../mail/mail.service';
 import { passwordResetEmail, passwordChangedEmail } from '../mail/templates';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { clientUrl } from '../../common/client-url';
 
 /** Long enough that guessing is hopeless, short enough to sit in a URL. */
 const RESET_TOKEN_BYTES = 32;
@@ -219,8 +220,7 @@ export class AuthService {
       },
     });
 
-    const base = process.env.APP_URL ?? 'http://localhost:5173';
-    const url = `${base}/reset-password?token=${token}`;
+    const url = `${clientUrl()}/reset-password?token=${token}`;
     const { subject, html, text } = passwordResetEmail(user.name, url, RESET_TTL_MINUTES);
 
     await this.mail.send({ to: user.email, toName: user.name, subject, html, text });

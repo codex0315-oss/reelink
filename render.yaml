@@ -60,6 +60,12 @@ services:
       # Browser origins allowed to call this API: the Vercel URL, comma separated.
       - key: CORS_ORIGINS
         sync: false
+      # Where links inside emails point — the React app, not this API. Distinct from
+      # SELF_URL above, which is this service. Leaving it unset used to mean password
+      # reset emails went out pointing at localhost; it now falls back to the first
+      # CORS origin instead, but set it explicitly so the behaviour is not implicit.
+      - key: APP_URL
+        sync: false
       # AI descriptions, reel scripts and Amicus. Free tier at console.groq.com.
       - key: GROQ_API_KEY
         sync: false

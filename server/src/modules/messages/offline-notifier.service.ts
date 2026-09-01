@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PresenceService } from './presence.service';
 import { MailService } from '../mail/mail.service';
 import { newMessageEmail } from '../mail/templates';
+import { clientUrl } from '../../common/client-url';
 
 /**
  * One nudge per conversation per this window. A back-and-forth of ten messages while
@@ -63,7 +64,7 @@ export class OfflineNotifierService {
     this.lastEmailed.set(conversationId, Date.now());
     this.prune();
 
-    const base = process.env.APP_URL ?? 'http://localhost:5173';
+    const base = clientUrl();
     const { subject, html, text } = newMessageEmail({
       recipientName: recipient.name,
       senderName,
