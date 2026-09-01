@@ -77,7 +77,11 @@ const absolute = (url: string) => (url.startsWith('http') ? url : `${SELF_URL}${
 // 'remotion' renders locally: free and watermark-free, but it needs real CPU and RAM
 // on this machine. 'json2video' renders in the cloud and adds an AI voiceover, at the
 // cost of credits per second of video.
-const REEL_RENDERER = process.env.REEL_RENDERER ?? 'remotion';
+// Normalised, because this is set by hand in a hosting dashboard: a pasted value
+// carrying a trailing space or a capital letter used to fall silently through to
+// 'remotion', which on a small instance means the reel exhausts memory and takes the
+// whole API down with it. A misconfiguration should not be able to look like a choice.
+const REEL_RENDERER = (process.env.REEL_RENDERER ?? 'remotion').trim().toLowerCase();
 
 
 // Encoding settings, chosen by benchmarking a 360-frame reel on a 4-core box:
@@ -241,6 +245,18 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
         ? 'Reels: rendering via JSON2Video (cloud, narrated)'
         : `Reels: rendering via Remotion (local, narrated, concurrency ${REEL_CONCURRENCY})`,
     );
+
+    // A value that is set but unrecognised means someone intended a different renderer
+    // and got this one by default. Silence there cost an outage: REEL_RENDERER was set
+    // to move rendering off this box, it did not match, and reels kept bundling
+    // webpack in-process until the instance ran out of memory.
+    const raw = process.env.REEL_RENDERER;
+    if (raw && !['remotion', 'json2video'].includes(REEL_RENDERER)) {
+      console.warn(
+        `REEL_RENDERER is set to ${JSON.stringify(raw)}, which is not a renderer. ` +
+          `Falling back to Remotion. Expected 'remotion' or 'json2video'.`,
+      );
+    }
 
     const { count } = await this.prisma.reel.updateMany({
       where: { status: 'processing' },
