@@ -13,6 +13,7 @@ import { ListingsModule } from './modules/listings/listings.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ReelsModule } from './modules/reels/reels.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { MailModule } from './modules/mail/mail.module';
 
@@ -33,6 +34,7 @@ import { MailModule } from './modules/mail/mail.module';
     AiModule,
     ReelsModule,
     AdminModule,
+    FeedbackModule,
     MessagesModule,
     MailModule,
   ],

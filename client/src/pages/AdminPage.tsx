@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BadgeCheck, Ban, Check, Search, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Ban, Check, Search, ShieldCheck, Star, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
   fetchAdminMetrics,
@@ -8,13 +8,16 @@ import {
   fetchVerifications,
   reviewVerification,
   setUserSuspension,
+  fetchAllFeedback,
+  setFeedbackPublished,
   type AdminMetrics,
   type AdminUser,
+  type AdminFeedback,
   type VerificationRequest,
 } from '../lib/api'
 import { assetUrl } from '../lib/config'
 
-type Tab = 'overview' | 'verifications' | 'users'
+type Tab = 'overview' | 'verifications' | 'feedback' | 'users'
 
 /**
  * Staff tooling, on its own route rather than inside the agent dashboard.
@@ -72,6 +75,7 @@ export default function AdminPage() {
             [
               ['overview', 'Overview'],
               ['verifications', 'Verifications'],
+              ['feedback', 'Feedback'],
               ['users', 'Users'],
             ] as const
           ).map(([key, label]) => (
@@ -93,6 +97,7 @@ export default function AdminPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {tab === 'overview' && <Overview token={token} />}
         {tab === 'verifications' && <Verifications token={token} />}
+        {tab === 'feedback' && <Feedback token={token} />}
         {tab === 'users' && <Users token={token} currentUserId={user.id} />}
       </main>
     </div>
@@ -448,5 +453,133 @@ function Avatar({ user }: { user: { name: string; avatarUrl?: string | null } })
     <span className="w-10 h-10 rounded-full bg-ink/10 text-ink/60 flex items-center justify-center text-sm font-black shrink-0">
       {user.name?.[0]?.toUpperCase() ?? 'R'}
     </span>
+  )
+}
+
+/**
+ * Every rating, happy or not.
+ *
+ * The unhappy ones never reach the landing page, which is exactly why they are worth
+ * a screen: they are the only place the app says something it did not choose to say.
+ */
+function Feedback({ token }: { token: string }) {
+  const [data, setData] = useState<{
+    feedback: AdminFeedback[]
+    average: number | null
+    total: number
+  } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    fetchAllFeedback(token)
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+  }, [token])
+
+  useEffect(load, [load])
+
+  async function toggle(id: string, published: boolean) {
+    setBusy(id)
+    setError('')
+    try {
+      await setFeedbackPublished(token, id, published)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update that feedback')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (error) return <p className="text-sm text-danger py-10 text-center">{error}</p>
+  if (!data) return <p className="text-sm text-ink/40 py-10 text-center">Loading…</p>
+
+  if (data.feedback.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-12 h-12 rounded-xl bg-ink/5 mx-auto mb-3 flex items-center justify-center">
+          <Star size={20} className="text-ink/25" />
+        </div>
+        <p className="font-bold text-ink text-sm">No feedback yet</p>
+        <p className="text-xs text-ink/50 mt-1">
+          Agents are asked once, after their first reel finishes.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-card rounded-2xl border border-ink/10 p-4 flex items-center gap-6">
+        <div>
+          <div className="text-2xl font-black text-ink">
+            {data.average?.toFixed(1) ?? '—'}
+          </div>
+          <div className="text-xs text-ink/50">average of all {data.total}</div>
+        </div>
+        <div className="text-xs text-ink/50 leading-relaxed">
+          This is every rating, including the ones never shown publicly. Only 4 and 5
+          star feedback with a comment reaches the landing page.
+        </div>
+      </div>
+
+      {data.feedback.map((f) => (
+        <div key={f.id} className="bg-card rounded-2xl border border-ink/10 p-4">
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+            <Avatar user={f.user} />
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-ink text-sm truncate">{f.user.name}</span>
+                <span className="flex gap-0.5 shrink-0">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      size={12}
+                      className={n <= f.rating ? 'text-gold fill-gold' : 'text-ink/15'}
+                    />
+                  ))}
+                </span>
+              </div>
+              <div className="text-xs text-ink/50 truncate">{f.user.email}</div>
+              {f.comment ? (
+                <p className="text-sm text-ink/80 mt-2 leading-relaxed">“{f.comment}”</p>
+              ) : (
+                <p className="text-xs text-ink/35 mt-2 italic">No comment left</p>
+              )}
+              <div className="text-[11px] text-ink/40 mt-1.5">
+                {new Date(f.createdAt).toLocaleDateString()} · after a {f.source}
+                {!f.showName && ' · asked to stay anonymous'}
+              </div>
+            </div>
+
+            <div className="w-full sm:w-auto">
+              {f.published ? (
+                <button
+                  onClick={() => toggle(f.id, false)}
+                  disabled={busy === f.id}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-ink/15 text-xs font-bold text-ink/60 hover:border-danger hover:text-danger transition-all disabled:opacity-50"
+                >
+                  <X size={13} />
+                  Hide from homepage
+                </button>
+              ) : (
+                <button
+                  onClick={() => toggle(f.id, true)}
+                  // Nothing to show is nothing to publish, and we never edit what
+                  // somebody wrote to make it publishable.
+                  disabled={busy === f.id || !f.comment}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-navy-dark text-xs font-bold hover:bg-gold-dark transition-all disabled:opacity-40"
+                >
+                  <Check size={13} />
+                  {f.comment ? 'Show on homepage' : 'No comment to show'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

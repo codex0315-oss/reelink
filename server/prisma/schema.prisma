@@ -56,6 +56,11 @@ model User {
   /// Set on every socket connect and disconnect, for "Active 12m ago".
   lastSeenAt DateTime?
 
+  /// When the user closed the feedback prompt without answering. We ask once, after
+  /// their first finished reel, and never again — this is what makes "never again"
+  /// hold across devices, which a flag in the browser would not.
+  feedbackDismissedAt DateTime?
+
   listings  Listing[]
   messages  Message[]
   buyerConversations  Conversation[] @relation("BuyerConversations")
@@ -69,6 +74,44 @@ model User {
   emailCodes EmailVerificationCode[]
   reels     Reel[]
   chatMessages ChatMessage[]
+  feedback  Feedback?
+}
+
+/// What an agent thinks of Reelink, asked once and shown on the landing page.
+///
+/// The rating is about the product, not about the listing or reel that prompted it —
+/// that is what makes an entry usable as a testimonial rather than as a review of a
+/// property.
+model Feedback {
+  id        String   @id @default(uuid())
+  /// One per agent: we ask once, so a second row would mean something went wrong.
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 1-5. Every rating is kept, including the unhappy ones — they are the useful
+  /// ones — but only 4 and 5 are eligible to be shown publicly.
+  rating    Int
+  /// Optional to give, required to publish. A wall of bare stars persuades nobody,
+  /// so an entry with no words stays private however high the rating.
+  comment   String?
+
+  /// Which moment prompted it, so feedback on the reel flow can be told apart from
+  /// feedback on listings later, without asking the user twice.
+  source    String
+
+  /// Consent to show their name and photo, asked in the modal and defaulted on.
+  /// Without it the entry can still be published, but reads as anonymous.
+  showName  Boolean  @default(true)
+
+  /// Whether it is on the landing page right now. Set automatically on submit when
+  /// the rating is high and there are words to show; an admin can turn it off again.
+  published Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The landing page asks for published entries newest first, and nothing else.
+  @@index([published, createdAt])
 }
 
 /// One continuous Amicus AI conversation per user, kept so advice survives a refresh.

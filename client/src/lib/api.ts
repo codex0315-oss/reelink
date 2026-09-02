@@ -597,3 +597,97 @@ export async function confirmEmailCode(token: string, code: string) {
   if (!res.ok) throw new Error(data.message || 'That code is not valid')
   return data as { verified: boolean; email: string; emailVerifiedAt: string }
 }
+
+/* ------------------------------------------------------------------ feedback */
+
+export type Testimonial = {
+  id: string
+  rating: number
+  comment: string
+  createdAt: string
+  name: string
+  avatarUrl: string | null
+  isVerified: boolean
+}
+
+/**
+ * The landing page's testimonials. No token: the landing page is read by people who
+ * have no account yet, which is the entire point of showing them.
+ */
+export async function fetchTestimonials(): Promise<Testimonial[]> {
+  const res = await fetch(`${API_URL}/feedback/public`)
+  if (!res.ok) throw new Error('Could not load feedback')
+  return res.json()
+}
+
+/** Whether this user should be asked for feedback, and what prompted it. */
+export async function fetchFeedbackPrompt(token: string) {
+  const res = await apiFetch(`${API_URL}/feedback/prompt`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not check feedback status')
+  return res.json() as Promise<{ ask: boolean; source: string }>
+}
+
+export async function submitFeedback(
+  token: string,
+  body: { rating: number; comment?: string; source: string; showName: boolean },
+) {
+  const res = await apiFetch(`${API_URL}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Could not send your feedback')
+  return data as { id: string; rating: number; published: boolean }
+}
+
+/** Closing the prompt without answering. Recorded, so it is never shown again. */
+export async function dismissFeedback(token: string) {
+  const res = await apiFetch(`${API_URL}/feedback/dismiss`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not dismiss feedback')
+  return res.json() as Promise<{ dismissed: boolean }>
+}
+
+export type AdminFeedback = {
+  id: string
+  rating: number
+  comment: string | null
+  source: string
+  showName: boolean
+  published: boolean
+  createdAt: string
+  user: { id: string; name: string; email: string; avatarUrl: string | null }
+}
+
+/** Every rating, including the ones never shown publicly — those are the useful ones. */
+export async function fetchAllFeedback(token: string) {
+  const res = await apiFetch(`${API_URL}/feedback/all`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load feedback')
+  return res.json() as Promise<{
+    feedback: AdminFeedback[]
+    average: number | null
+    total: number
+  }>
+}
+
+/** Takes a testimonial off the landing page, or puts one back. */
+export async function setFeedbackPublished(
+  token: string,
+  id: string,
+  published: boolean,
+) {
+  const res = await apiFetch(`${API_URL}/feedback/${id}/published`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ published }),
+  })
+  if (!res.ok) throw new Error('Could not update that feedback')
+  return res.json() as Promise<{ id: string; published: boolean }>
+}

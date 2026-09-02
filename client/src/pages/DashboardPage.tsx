@@ -20,6 +20,9 @@ import {
   generateReel,
   regenerateReel,
   deleteReel,
+  fetchFeedbackPrompt,
+  submitFeedback,
+  dismissFeedback,
 } from '../lib/api'
 import CreateListingModal from '../components/CreateListingModal'
 import CreateReelModal from '../components/CreateReelModal'
@@ -34,6 +37,7 @@ import PropertyDetails from '../components/PropertyDetails'
 import MessagesView from '../components/MessagesView'
 import MessageToasts from '../components/MessageToasts'
 import ErrorToast from '../components/ErrorToast'
+import FeedbackModal from '../components/FeedbackModal'
 import { describeError } from '../lib/errors'
 import { useMessages } from '../context/MessagesContext'
 import ReelProgressDialog from '../components/ReelProgressDialog'
@@ -160,6 +164,8 @@ export default function DashboardPage() {
   const [openConversationId, setOpenConversationId] = useState<string | null>(null)
   /** Set when an action the user took failed, and they need telling. */
   const [actionError, setActionError] = useState<string | null>(null)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [downloadingReel, setDownloadingReel] = useState<string | null>(null)
 
@@ -244,7 +250,57 @@ export default function DashboardPage() {
   // The socket says when a render finishes, so the list refetches once at the right
   // moment instead of every five seconds. The poll stays as a safety net in case the
   // socket drops mid-render, but at a much calmer interval.
-  useEffect(() => onFinish(() => void loadReels()), [onFinish, token])
+  useEffect(
+    () =>
+      onFinish(() => {
+        void loadReels()
+        // Asked here rather than on mount: the server only says yes once a reel is
+        // actually finished, and this is the moment that becomes true. Delayed a
+        // little so the prompt does not land on top of the "your reel is ready"
+        // toast the same event produces.
+        window.setTimeout(() => void checkFeedbackPrompt(), 4000)
+      }),
+    [onFinish, token],
+  )
+
+  /** Asks the server whether this user is due the prompt. Silent if not. */
+  async function checkFeedbackPrompt() {
+    if (!token) return
+    try {
+      const { ask } = await fetchFeedbackPrompt(token)
+      if (ask) setShowFeedback(true)
+    } catch {
+      // A prompt we failed to offer is not worth telling anyone about.
+    }
+  }
+
+  async function handleSubmitFeedback(value: {
+    rating: number
+    comment: string
+    showName: boolean
+  }) {
+    if (!token) return
+    setFeedbackSubmitting(true)
+    try {
+      await submitFeedback(token, { ...value, source: 'reel' })
+      setShowFeedback(false)
+    } catch (err) {
+      setActionError(describeError(err, 'Could not send your feedback. Please try again.'))
+    } finally {
+      setFeedbackSubmitting(false)
+    }
+  }
+
+  /** Closing is an answer: record it so the prompt never comes back. */
+  async function handleDismissFeedback() {
+    setShowFeedback(false)
+    if (!token) return
+    try {
+      await dismissFeedback(token)
+    } catch {
+      // Worst case it is offered once more on another day.
+    }
+  }
 
   useEffect(() => {
     const hasProcessing = reels.some((r) => r.status === 'processing')
@@ -869,6 +925,13 @@ export default function DashboardPage() {
       />
 
       <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
+
+      <FeedbackModal
+        open={showFeedback}
+        submitting={feedbackSubmitting}
+        onSubmit={handleSubmitFeedback}
+        onDismiss={handleDismissFeedback}
+      />
 
       {/* Incoming-message popups. Clicking one lands you in that thread. */}
       <MessageToasts

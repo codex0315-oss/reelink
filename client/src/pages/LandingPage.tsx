@@ -24,6 +24,7 @@ import {
   BadgeCheck,
 } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
+import Testimonials from '../components/Testimonials'
 import { useTheme } from '../context/ThemeContext'
 
 /**
@@ -620,6 +621,12 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* ---------------------------------------------------- testimonials */}
+        {/* Sits before the FAQ on purpose: proof that other agents use this answers
+            the doubt, and the FAQ then answers the questions that follow it. Renders
+            nothing until real feedback exists, so the page reads normally until then. */}
+        <Testimonials />
 
         {/* ------------------------------------------------------------- faq */}
         <section id="faq" className="py-20 lg:py-28 border-t border-line/10">
