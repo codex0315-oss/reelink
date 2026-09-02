@@ -33,6 +33,7 @@ import BrowseView from '../components/BrowseView'
 import PropertyDetails from '../components/PropertyDetails'
 import MessagesView from '../components/MessagesView'
 import MessageToasts from '../components/MessageToasts'
+import ErrorToast from '../components/ErrorToast'
 import { useMessages } from '../context/MessagesContext'
 import ReelProgressDialog from '../components/ReelProgressDialog'
 import { useReelProgress } from '../context/ReelProgressContext'
@@ -156,6 +157,8 @@ export default function DashboardPage() {
   const [feedLoading, setFeedLoading] = useState(true)
   // Set when a property's Message button opens a thread, so Messages can select it.
   const [openConversationId, setOpenConversationId] = useState<string | null>(null)
+  /** Set when an action the user took failed, and they need telling. */
+  const [actionError, setActionError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [downloadingReel, setDownloadingReel] = useState<string | null>(null)
 
@@ -353,8 +356,22 @@ export default function DashboardPage() {
       setOpenConversationId(conversation.id)
       setActiveTab('messages')
       navigate('/dashboard')
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      // Not silent: this is a button press with a visible promise attached, and doing
+      // nothing at all is indistinguishable from the app being broken.
+      //
+      // fetch rejects with a TypeError when the request never reached the server, and
+      // its message is "Failed to fetch" — true, and useless to the person holding the
+      // phone. Everything else here was thrown by the API layer, which already carries
+      // the server's own wording, and that is worth showing: it names the actual
+      // refusal, like a listing that has since been deleted.
+      setActionError(
+        err instanceof TypeError
+          ? 'Could not reach the server. Check your connection and try again.'
+          : err instanceof Error && err.message
+            ? err.message
+            : 'Could not open that conversation. Please try again.',
+      )
     }
   }
 
@@ -853,6 +870,8 @@ export default function DashboardPage() {
           if (propertyId) navigate('/dashboard')
         }}
       />
+
+      <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
 
       {/* Incoming-message popups. Clicking one lands you in that thread. */}
       <MessageToasts
