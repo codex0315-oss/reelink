@@ -32,7 +32,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const data = await registerAgent({ name, email, password })
-      login(data)
+      await login(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {

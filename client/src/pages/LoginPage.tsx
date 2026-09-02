@@ -26,7 +26,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const data = await loginAgent({ email, password })
-      login(data)
+      // Awaited so the button keeps spinning until the redirect happens; login now
+      // loads the profile first to decide whether this is staff.
+      await login(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {

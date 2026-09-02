@@ -29,7 +29,9 @@ export type User = {
 type AuthContextType = {
   user: User | null
   token: string | null
-  login: (session: Session | string) => void
+  /** Resolves once the profile is loaded and the destination chosen, so callers can
+   *  keep their spinner running until the redirect actually happens. */
+  login: (session: Session | string) => Promise<void>
   logout: () => (void)
   loading: boolean
   /** Push an updated user into context so the top bar reflects Settings changes at once. */
@@ -76,14 +78,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [navigate],
   )
 
-  function login(session: Session | string) {
+  async function login(session: Session | string) {
     // Accepts the whole response so the refresh token travels with it; the bare-string
     // form is kept for callers that only ever had an access token.
     const next: Session = typeof session === 'string' ? { accessToken: session } : session
     setSession(next)
-    setToken(next.accessToken)
-    getMe(next.accessToken).then(setUser).catch(() => {})
-    navigate('/dashboard')
+
+    // The profile is fetched before the token is stored, so the role is known in time
+    // to choose a destination. Storing it first would let the login page's own
+    // redirect fire on the token alone and send staff to the agent dashboard, and a
+    // correction afterwards would show as a flash of the wrong screen.
+    //
+    // Only the landing destination depends on this. Admins keep full access to the
+    // agent side — they have listings and reels of their own — they simply do not
+    // start there.
+    try {
+      const me = await getMe(next.accessToken)
+      setUser(me)
+      setToken(next.accessToken)
+      navigate(me.role === 'admin' ? '/admin' : '/dashboard', { replace: true })
+    } catch {
+      // A failed profile read must not cost someone their login: the token is good,
+      // so sign them in anyway and let the dashboard fetch the profile again.
+      setToken(next.accessToken)
+      navigate('/dashboard', { replace: true })
+    }
   }
 
   function logout() {

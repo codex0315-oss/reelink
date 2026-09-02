@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -64,5 +65,46 @@ export class AdminController {
       body?.approve === true,
       body?.note,
     );
+  }
+
+  /** What just happened across the platform, newest first. */
+  @Get('activity')
+  activity(@Query('limit') limit?: string) {
+    return this.admin.activity(Math.min(Math.max(Number(limit) || 40, 1), 100));
+  }
+
+  /** Daily counts for the dashboard's charts. Capped so nobody asks for a decade. */
+  @Get('trends')
+  trends(@Query('days') days?: string) {
+    return this.admin.trends(Math.min(Math.max(Number(days) || 14, 7), 90));
+  }
+
+  @Get('health')
+  health() {
+    return this.admin.health();
+  }
+
+  @Get('ai-usage')
+  aiUsage() {
+    return this.admin.aiUsage();
+  }
+
+  @Get('users/:id')
+  userDetail(@Param('id') id: string) {
+    return this.admin.userDetail(id);
+  }
+
+  /**
+   * Removal, not deletion by the owner. Both take a reason, which is required and is
+   * sent on to whoever's work is being taken down.
+   */
+  @Delete('listings/:id')
+  removeListing(@Param('id') id: string, @Body() body: { reason: string }) {
+    return this.admin.removeListing(id, body?.reason ?? '');
+  }
+
+  @Delete('reels/:id')
+  removeReel(@Param('id') id: string, @Body() body: { reason: string }) {
+    return this.admin.removeReel(id, body?.reason ?? '');
   }
 }

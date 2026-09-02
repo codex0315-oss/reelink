@@ -15,9 +15,18 @@ import {
   type AdminFeedback,
   type VerificationRequest,
 } from '../lib/api'
-import { assetUrl } from '../lib/config'
+import { Section, Stat, Avatar } from '../components/adminUi'
+import { Activity, Trends, Health, AiUsage } from '../components/AdminPanels'
 
-type Tab = 'overview' | 'verifications' | 'feedback' | 'users'
+type Tab =
+  | 'overview'
+  | 'activity'
+  | 'trends'
+  | 'health'
+  | 'ai'
+  | 'verifications'
+  | 'feedback'
+  | 'users'
 
 /**
  * Staff tooling, on its own route rather than inside the agent dashboard.
@@ -74,6 +83,10 @@ export default function AdminPage() {
           {(
             [
               ['overview', 'Overview'],
+              ['activity', 'Activity'],
+              ['trends', 'Trends'],
+              ['health', 'Health'],
+              ['ai', 'AI usage'],
               ['verifications', 'Verifications'],
               ['feedback', 'Feedback'],
               ['users', 'Users'],
@@ -96,6 +109,10 @@ export default function AdminPage() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {tab === 'overview' && <Overview token={token} />}
+        {tab === 'activity' && <Activity token={token} />}
+        {tab === 'trends' && <Trends token={token} />}
+        {tab === 'health' && <Health token={token} />}
+        {tab === 'ai' && <AiUsage token={token} />}
         {tab === 'verifications' && <Verifications token={token} />}
         {tab === 'feedback' && <Feedback token={token} />}
         {tab === 'users' && <Users token={token} currentUserId={user.id} />}
@@ -177,43 +194,6 @@ function Overview({ token }: { token: string }) {
         <Stat label="Property views" value={m.engagement.viewsThisWeek} hint="this week" />
         <Stat label="Conversations" value={m.engagement.conversations} hint="buyer to agent" />
       </Section>
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className="text-[11px] font-bold text-ink/45 uppercase tracking-wide mb-2">{title}</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{children}</div>
-    </section>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  warn,
-}: {
-  label: string
-  value: number | string
-  hint: string
-  warn?: boolean
-}) {
-  // A warning tone on a zero would paint "0 suspended" red, which reads as a problem
-  // when it is in fact the good outcome.
-  const isZero = value === 0 || value === '$0.00'
-
-  return (
-    <div className="bg-card rounded-2xl border border-ink/10 p-4 min-w-0">
-      <div
-        className={`font-heading text-2xl font-black ${warn && !isZero ? 'text-warn' : 'text-ink'}`}
-      >
-        {value}
-      </div>
-      <div className="text-xs font-bold text-ink mt-1">{label}</div>
-      <div className="text-[11px] text-ink/40 mt-0.5">{hint}</div>
     </div>
   )
 }
@@ -435,24 +415,6 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
         </>
       )}
     </div>
-  )
-}
-
-function Avatar({ user }: { user: { name: string; avatarUrl?: string | null } }) {
-  if (user.avatarUrl) {
-    return (
-      <img
-        src={assetUrl(user.avatarUrl)}
-        alt=""
-        className="w-10 h-10 rounded-full object-cover shrink-0 border border-ink/10"
-      />
-    )
-  }
-
-  return (
-    <span className="w-10 h-10 rounded-full bg-ink/10 text-ink/60 flex items-center justify-center text-sm font-black shrink-0">
-      {user.name?.[0]?.toUpperCase() ?? 'R'}
-    </span>
   )
 }
 

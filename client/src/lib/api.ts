@@ -691,3 +691,118 @@ export async function setFeedbackPublished(
   if (!res.ok) throw new Error('Could not update that feedback')
   return res.json() as Promise<{ id: string; published: boolean }>
 }
+
+/* --------------------------------------------------------- admin dashboard */
+
+export type ActivityEvent = {
+  id: string
+  kind: 'signup' | 'listing' | 'reel' | 'reel-failed' | 'verification' | 'feedback'
+  at: string
+  who: string
+  what: string
+}
+
+export type AdminTrends = {
+  days: number
+  signups: { date: string; count: number }[]
+  listings: { date: string; count: number }[]
+  reels: { date: string; count: number }[]
+  failures: { date: string; count: number }[]
+  views: { date: string; count: number }[]
+}
+
+export type AdminHealth = {
+  reels: {
+    done: number
+    failed: number
+    processing: number
+    stuck: number
+    failureRate: number | null
+  }
+  recentFailures: { id: string; at: string; who: string; listing: string | null }[]
+  config: {
+    renderer: string
+    storage: string
+    cloudRenderKey: boolean
+    cinematicKey: boolean
+    groqKey: boolean
+  }
+}
+
+export type AdminAiUsage = {
+  cinematic: { thisWeek: number; total: number; estimatedUsdThisWeek: number }
+  cloudRenders: { thisWeek: number; total: number; estimatedCreditsThisWeek: number }
+  amicus: { today: number; thisWeek: number; total: number }
+  heaviestUsers: { id: string; name: string; email: string; renders: number }[]
+}
+
+export type AdminUserDetail = {
+  user: AdminUser & {
+    emailVerifiedAt: string | null
+    _count: { listings: number; reels: number; reelRenders: number }
+  }
+  listings: {
+    id: string
+    title: string
+    price: number
+    listingType: string
+    createdAt: string
+    photoUrls: string[]
+  }[]
+  reels: {
+    id: string
+    status: string
+    createdAt: string
+    videoUrl: string | null
+    listing: { id: string; title: string } | null
+    title: string | null
+  }[]
+  feedback: {
+    rating: number
+    comment: string | null
+    published: boolean
+    createdAt: string
+  } | null
+  rendersThisWeek: number
+}
+
+async function adminGet<T>(token: string, path: string, what: string): Promise<T> {
+  const res = await apiFetch(`${API_URL}/admin/${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Could not load ${what}`)
+  return res.json() as Promise<T>
+}
+
+export const fetchAdminActivity = (token: string) =>
+  adminGet<ActivityEvent[]>(token, 'activity', 'recent activity')
+
+export const fetchAdminTrends = (token: string, days = 14) =>
+  adminGet<AdminTrends>(token, `trends?days=${days}`, 'trends')
+
+export const fetchAdminHealth = (token: string) =>
+  adminGet<AdminHealth>(token, 'health', 'system health')
+
+export const fetchAdminAiUsage = (token: string) =>
+  adminGet<AdminAiUsage>(token, 'ai-usage', 'AI usage')
+
+export const fetchAdminUserDetail = (token: string, id: string) =>
+  adminGet<AdminUserDetail>(token, `users/${id}`, 'that account')
+
+/** Staff removal. The reason is required and is sent to the owner. */
+async function adminRemove(token: string, path: string, reason: string) {
+  const res = await apiFetch(`${API_URL}/admin/${path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ reason }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Could not remove that')
+  return data as { removed: boolean; title: string }
+}
+
+export const removeListingAsAdmin = (token: string, id: string, reason: string) =>
+  adminRemove(token, `listings/${id}`, reason)
+
+export const removeReelAsAdmin = (token: string, id: string, reason: string) =>
+  adminRemove(token, `reels/${id}`, reason)
