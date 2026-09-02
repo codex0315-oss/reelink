@@ -74,6 +74,10 @@ const SELF_URL = process.env.SELF_URL ?? `http://localhost:${process.env.PORT ??
  */
 const absolute = (url: string) => (url.startsWith('http') ? url : `${SELF_URL}${url}`);
 
+/** The cloud renderer reports stages in lower case; the progress bar reads better without. */
+const capitalise = (s?: string) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1) : undefined;
+
 // 'remotion' renders locally: free and watermark-free, but it needs real CPU and RAM
 // on this machine. 'json2video' renders in the cloud and adds an AI voiceover, at the
 // cost of credits per second of video.
@@ -588,11 +592,17 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Live-only: progress is meaningless after the render, so it is never persisted. */
-  private emitProgress(userId: string, reelId: string, phase: ReelPhase, within = 0) {
+  private emitProgress(
+    userId: string,
+    reelId: string,
+    phase: ReelPhase,
+    within = 0,
+    label?: string,
+  ) {
     this.notificationsService.push(
       userId,
       'reel:progress',
-      progressFor(reelId, phase, within),
+      progressFor(reelId, phase, within, label),
     );
   }
 
@@ -633,7 +643,14 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (REEL_RENDERER === 'json2video') {
-      await this.renderViaJson2Video(listing, hook, outputLocation, template.id);
+      await this.renderViaJson2Video(
+        listing,
+        hook,
+        outputLocation,
+        template.id,
+        userId,
+        reelId,
+      );
     } else {
       await this.renderViaRemotion(
         listing,
@@ -645,6 +662,10 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
         heroClip,
       );
     }
+
+    // Uploading a finished 1080x1920 reel to object storage is the last real wait, and
+    // without this the bar held at 99 through all of it.
+    this.emitProgress(userId, reelId, 'render', 1, 'Saving your reel');
 
     // Both renderers write to the local filesystem, so the finished file is moved into
     // storage here rather than at the point of render. On a container host that local
@@ -694,9 +715,16 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     hook: string,
     outputLocation: string,
     templateId: string,
+    userId: string,
+    reelId: string,
   ) {
     const template = resolveTemplate(templateId);
     const seconds = Math.max(listing.photoUrls.length, 1) * template.secondsPerPhoto;
+
+    // The cloud path used to emit nothing after 'script', so the bar sat at 0 for the
+    // whole render and then jumped to 100 — the reel worked, but there was no way to
+    // tell it was progressing rather than stuck.
+    this.emitProgress(userId, reelId, 'narration');
     const { voiceover } = await this.aiService.generateVoiceover({
       title: listing.title,
       price: listing.price,
@@ -706,12 +734,18 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
       seconds,
     });
 
+    this.emitProgress(userId, reelId, 'prepare');
+
     await this.json2VideoService.render(
       listing,
       hook,
       voiceover,
       outputLocation,
       templateId,
+      // Their own wording for the stage — "rendering scenes", "concatenating scenes" —
+      // which says more than a generic label held for the whole wait.
+      (fraction, stage) =>
+        this.emitProgress(userId, reelId, 'render', fraction, capitalise(stage)),
     );
   }
 

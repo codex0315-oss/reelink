@@ -74,6 +74,31 @@ const PRICE_FONT = 'Roboto';
 
 type UploadTicket = { success: boolean; uploadUrl: string; fileUrl: string };
 
+/** Reports how far along the cloud render is: a 0..1 fraction and their own wording. */
+export type RenderProgress = (fraction: number, stage?: string) => void;
+
+/**
+ * How long a render is assumed to take when estimating the bar.
+ *
+ * Their API reports a stage but never a percentage, so there is nothing to read a real
+ * figure from. Measured renders of a three-photo reel finish in well under a minute;
+ * this is deliberately longer than that, because a bar that creeps and then waits at
+ * 90 reads better than one that sits pinned at 100 while the work continues.
+ */
+const NOMINAL_RENDER_MS = 60_000;
+
+/**
+ * Elapsed time as a fraction, nudged by whatever stage they report.
+ *
+ * Capped below 1: this phase only ends when the file actually arrives, and the caller
+ * still has to fetch it and move it into storage afterwards. Concatenating is the last
+ * thing they do, so seeing it means the end is close regardless of the clock.
+ */
+function fractionDone(elapsedMs: number, stage?: string): number {
+  const byClock = Math.min(elapsedMs / NOMINAL_RENDER_MS, 0.9);
+  return /concatenat/i.test(stage ?? '') ? Math.max(byClock, 0.93) : byClock;
+}
+
 @Injectable()
 export class Json2VideoService {
   private get apiKey() {
@@ -92,6 +117,7 @@ export class Json2VideoService {
     voiceover: string,
     outputLocation: string,
     templateId?: string | null,
+    onProgress?: RenderProgress,
   ): Promise<void> {
     // The renderer runs on their infrastructure and cannot reach this machine, so
     // every photo has to be pushed somewhere publicly readable first.
@@ -102,7 +128,11 @@ export class Json2VideoService {
     const template = resolveTemplate(templateId);
     const movie = this.buildMovie(listing, hook, voiceover, publicPhotoUrls, template);
     const project = await this.submit(movie);
-    const videoUrl = await this.waitForRender(project);
+    const videoUrl = await this.waitForRender(project, onProgress);
+
+    // The file still has to come back over the wire, and for a 1080x1920 reel that is
+    // not instant. Reported rather than left as a silent gap at the end of the bar.
+    onProgress?.(0.97, 'Downloading your reel');
     await this.downloadTo(videoUrl, outputLocation);
   }
 
@@ -291,8 +321,12 @@ export class Json2VideoService {
     return json.project;
   }
 
-  private async waitForRender(project: string): Promise<string> {
+  private async waitForRender(
+    project: string,
+    onProgress?: RenderProgress,
+  ): Promise<string> {
     const deadline = Date.now() + POLL_TIMEOUT_MS;
+    const startedAt = Date.now();
 
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
@@ -305,6 +339,10 @@ export class Json2VideoService {
       };
       const movie = json.movie;
       if (!movie) continue;
+
+      if (movie.status === 'running' || movie.status === 'pending') {
+        onProgress?.(fractionDone(Date.now() - startedAt, movie.message), movie.message);
+      }
 
       if (movie.status === 'done' && movie.url) return movie.url;
       if (movie.status === 'error') {

@@ -24,7 +24,10 @@ export type ReelPhase =
 type PhaseSpan = { from: number; to: number; label: string };
 
 export const PHASES: Record<ReelPhase, PhaseSpan> = {
-  script: { from: 0, to: 10, label: 'Writing the headline' },
+  // Starts above zero deliberately. This phase parks at its own start while the model
+  // writes, and a bar reading exactly 0% for several seconds is the thing users read as
+  // frozen — the work has begun, so the bar should say so.
+  script: { from: 5, to: 12, label: 'Writing the headline' },
   // Only runs for cinematic reels, and it is the longest remote wait in the chain —
   // a queued generation polled until it lands. It borrows its slice from narration
   // rather than lengthening the bar, so a standard reel's pacing is unchanged.
@@ -54,11 +57,21 @@ export function percentFor(phase: ReelPhase, within = 0): number {
   return Math.round(span.from + (span.to - span.from) * clamped);
 }
 
-export function progressFor(reelId: string, phase: ReelPhase, within = 0): ReelProgress {
+/**
+ * `label` overrides the phase's own wording. The cloud renderer reports what it is
+ * doing as it goes — "rendering scenes", then "concatenating scenes" — and saying that
+ * is better than a generic "Rendering video" held for the whole wait.
+ */
+export function progressFor(
+  reelId: string,
+  phase: ReelPhase,
+  within = 0,
+  label?: string,
+): ReelProgress {
   return {
     reelId,
     phase,
-    label: PHASES[phase].label,
+    label: label?.trim() || PHASES[phase].label,
     percent: percentFor(phase, within),
   };
 }
