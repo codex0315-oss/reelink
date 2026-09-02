@@ -34,6 +34,7 @@ import PropertyDetails from '../components/PropertyDetails'
 import MessagesView from '../components/MessagesView'
 import MessageToasts from '../components/MessageToasts'
 import ErrorToast from '../components/ErrorToast'
+import { describeError } from '../lib/errors'
 import { useMessages } from '../context/MessagesContext'
 import ReelProgressDialog from '../components/ReelProgressDialog'
 import { useReelProgress } from '../context/ReelProgressContext'
@@ -259,8 +260,8 @@ export default function DashboardPage() {
       await generateReel(token, listingId)
       await loadReels()
       setActiveTab('reels')
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      setActionError(describeError(err, 'Could not start that reel. Please try again.'))
     }
   }
 
@@ -269,8 +270,10 @@ export default function DashboardPage() {
     try {
       await regenerateReel(token, reelId)
       await loadReels()
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      setActionError(
+        describeError(err, 'Could not regenerate that reel. Please try again.'),
+      )
     }
   }
 
@@ -287,8 +290,8 @@ export default function DashboardPage() {
       await deleteReel(token, deletingReel.id)
       await loadReels()
       setDeletingReel(null)
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      setActionError(describeError(err, 'Could not delete that reel. Please try again.'))
     } finally {
       setDeleteReelLoading(false)
     }
@@ -299,8 +302,10 @@ export default function DashboardPage() {
     setDownloadingReel(reelId)
     try {
       await downloadReel(token, reelId)
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      setActionError(
+        describeError(err, 'Could not download that reel. Please try again.'),
+      )
     } finally {
       setDownloadingReel(null)
     }
@@ -359,18 +364,8 @@ export default function DashboardPage() {
     } catch (err) {
       // Not silent: this is a button press with a visible promise attached, and doing
       // nothing at all is indistinguishable from the app being broken.
-      //
-      // fetch rejects with a TypeError when the request never reached the server, and
-      // its message is "Failed to fetch" — true, and useless to the person holding the
-      // phone. Everything else here was thrown by the API layer, which already carries
-      // the server's own wording, and that is worth showing: it names the actual
-      // refusal, like a listing that has since been deleted.
       setActionError(
-        err instanceof TypeError
-          ? 'Could not reach the server. Check your connection and try again.'
-          : err instanceof Error && err.message
-            ? err.message
-            : 'Could not open that conversation. Please try again.',
+        describeError(err, 'Could not open that conversation. Please try again.'),
       )
     }
   }
@@ -391,8 +386,10 @@ export default function DashboardPage() {
         setActiveTab('browse')
         navigate('/dashboard')
       }
-    } catch {
-      // fail silently for now
+    } catch (err) {
+      setActionError(
+        describeError(err, 'Could not delete that listing. Please try again.'),
+      )
     } finally {
       setDeleteLoading(false)
     }
