@@ -16,7 +16,7 @@ import {
   type VerificationRequest,
 } from '../lib/api'
 import { Section, Stat, Avatar } from '../components/adminUi'
-import { Activity, Trends, Health, AiUsage } from '../components/AdminPanels'
+import { Activity, Trends, Health, AiUsage, Flagged } from '../components/AdminPanels'
 import ReasonDialog from '../components/ReasonDialog'
 import UserDetail from '../components/UserDetail'
 
@@ -26,6 +26,7 @@ type Tab =
   | 'trends'
   | 'health'
   | 'ai'
+  | 'flagged'
   | 'verifications'
   | 'feedback'
   | 'users'
@@ -89,6 +90,7 @@ export default function AdminPage() {
               ['trends', 'Trends'],
               ['health', 'Health'],
               ['ai', 'AI usage'],
+              ['flagged', 'Review queue'],
               ['verifications', 'Verifications'],
               ['feedback', 'Feedback'],
               ['users', 'Users'],
@@ -115,6 +117,7 @@ export default function AdminPage() {
         {tab === 'trends' && <Trends token={token} />}
         {tab === 'health' && <Health token={token} />}
         {tab === 'ai' && <AiUsage token={token} />}
+        {tab === 'flagged' && <Flagged token={token} />}
         {tab === 'verifications' && <Verifications token={token} />}
         {tab === 'feedback' && <Feedback token={token} />}
         {tab === 'users' && <Users token={token} currentUserId={user.id} />}

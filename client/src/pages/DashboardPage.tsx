@@ -23,6 +23,7 @@ import {
   fetchFeedbackPrompt,
   submitFeedback,
   dismissFeedback,
+  appealModeration,
 } from '../lib/api'
 import CreateListingModal from '../components/CreateListingModal'
 import CreateReelModal from '../components/CreateReelModal'
@@ -38,6 +39,7 @@ import MessagesView from '../components/MessagesView'
 import MessageToasts from '../components/MessageToasts'
 import ErrorToast from '../components/ErrorToast'
 import FeedbackModal from '../components/FeedbackModal'
+import ReasonDialog from '../components/ReasonDialog'
 import { describeError } from '../lib/errors'
 import { useMessages } from '../context/MessagesContext'
 import ReelProgressDialog from '../components/ReelProgressDialog'
@@ -98,6 +100,9 @@ type Listing = {
   publishToFacebook: boolean
   panoramaUrls?: string[]
   user?: { id: string; name: string; avatarUrl?: string | null }
+  /** Set by the automated check. 'flagged' or 'appealed' means buyers cannot see it. */
+  moderationStatus?: string
+  moderationReason?: string | null
 }
 
 type Reel = {
@@ -189,6 +194,9 @@ export default function DashboardPage() {
   /** Set when an action the user took failed, and they need telling. */
   const [actionError, setActionError] = useState<string | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
+  /** The held listing whose dispute is being written. */
+  const [appealing, setAppealing] = useState<Listing | null>(null)
+  const [appealSubmitting, setAppealSubmitting] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [downloadingReel, setDownloadingReel] = useState<string | null>(null)
@@ -312,6 +320,24 @@ export default function DashboardPage() {
       setActionError(describeError(err, 'Could not send your feedback. Please try again.'))
     } finally {
       setFeedbackSubmitting(false)
+    }
+  }
+
+  /**
+   * The agent's answer to an automated flag. It does not unhide anything — it puts the
+   * listing in front of a person and records what they said.
+   */
+  async function submitAppeal(note: string) {
+    if (!token || !appealing) return
+    setAppealSubmitting(true)
+    try {
+      await appealModeration(token, 'listing', appealing.id, note)
+      setAppealing(null)
+      await loadListings()
+    } catch (err) {
+      setActionError(describeError(err, 'Could not send that for review. Please try again.'))
+    } finally {
+      setAppealSubmitting(false)
     }
   }
 
@@ -787,6 +813,7 @@ export default function DashboardPage() {
                       onClick={() => {}}
                       onEdit={() => setEditingListing(listing)}
                       onDelete={() => setDeletingListing(listing)}
+                      onAppeal={() => setAppealing(listing)}
                     />
                   ))}
                 </div>
@@ -949,6 +976,17 @@ export default function DashboardPage() {
       />
 
       <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
+
+      <ReasonDialog
+        open={!!appealing}
+        title="Ask us to take another look"
+        description={`"${appealing?.title ?? ''}" is hidden from buyers because the automated check did not recognise it as a property. Tell us what it actually is and a person will review it.`}
+        placeholder="e.g. This is a vacant lot in Minglanilla with a clean title."
+        confirmLabel="Send for review"
+        loading={appealSubmitting}
+        onConfirm={submitAppeal}
+        onCancel={() => setAppealing(null)}
+      />
 
       <FeedbackModal
         open={showFeedback}

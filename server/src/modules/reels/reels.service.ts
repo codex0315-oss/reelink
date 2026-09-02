@@ -14,6 +14,7 @@ import { QuickReelDto } from './dto/quick-reel.dto';
 import { Json2VideoService } from './json2video.service';
 import { HiggsfieldService } from './higgsfield.service';
 import { StorageService } from '../storage/storage.service';
+import { ModerationService } from '../moderation/moderation.service';
 import { ReelSource } from './reel-source.type';
 import { progressFor, type ReelPhase } from './reel-progress';
 import {
@@ -212,6 +213,7 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
     private json2VideoService: Json2VideoService,
     private higgsfield: HiggsfieldService,
     private storage: StorageService,
+    private moderation: ModerationService,
   ) {}
 
   /**
@@ -464,7 +466,55 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
       photoUrls,
     }, dto.template);
 
+    // Detached, alongside the render. These photos never passed through a listing, so
+    // this is the only point at which anything looks at them.
+    void this.moderation.checkReel(reel.id);
+
     return reel;
+  }
+
+  /**
+   * The agent disputing a flag on their reel. Mirrors the listing appeal: it queues a
+   * human rather than unhiding anything.
+   */
+  async appealModeration(userId: string, id: string, note: string) {
+    const reel = await this.prisma.reel.findUnique({
+      where: { id },
+      select: { id: true, userId: true, title: true, moderationStatus: true },
+    });
+    if (!reel || reel.userId !== userId) throw new NotFoundException('Reel not found');
+    if (reel.moderationStatus !== 'flagged') {
+      throw new BadRequestException('This reel is not awaiting review');
+    }
+
+    const updated = await this.prisma.reel.update({
+      where: { id },
+      data: {
+        moderationStatus: 'appealed',
+        moderationNote: note.trim().slice(0, 500) || null,
+      },
+      select: { id: true, moderationStatus: true },
+    });
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: 'admin' },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((admin) =>
+        this.notificationsService
+          .create(
+            admin.id,
+            'moderation',
+            'An agent disputed a flag',
+            `A reel titled "${reel.title ?? 'Untitled'}" was flagged automatically and the agent says it is genuine.`,
+            reel.id,
+          )
+          .catch(() => undefined),
+      ),
+    );
+
+    return updated;
   }
 
   private startRender(
@@ -917,7 +967,13 @@ export class ReelsService implements OnModuleInit, OnModuleDestroy {
    */
   findFeed() {
     return this.prisma.reel.findMany({
-      where: { status: 'done', videoUrl: { not: null } },
+      where: {
+        status: 'done',
+        videoUrl: { not: null },
+        // Same rule as Browse: a flagged reel is out of the public feed until a human
+        // has looked at it. Its owner still sees it in their own library.
+        moderationStatus: { notIn: ['flagged', 'appealed'] },
+      },
       orderBy: { createdAt: 'desc' },
       take: FEED_PAGE_SIZE,
       include: {

@@ -1,6 +1,7 @@
+import { StorageService } from '../storage/storage.service';
+import { imageDataUrl } from './image-data-url';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { readFile } from 'fs/promises';
-import { basename, join } from 'path';
 
 type DescriptionInput = {
   title: string;
@@ -37,16 +38,10 @@ const MAX_LABELLED_PHOTOS = 9;
 const IMAGES_PER_REQUEST = 3;
 
 /** Images live on disk and the model cannot reach this host, so they go inline. */
-async function toDataUrl(localUrl: string, folder: string) {
-  const filename = basename(localUrl);
-  const buffer = await readFile(join(process.cwd(), 'uploads', folder, filename));
-  const ext = filename.toLowerCase().split('.').pop();
-  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-  return `data:${mime};base64,${buffer.toString('base64')}`;
-}
-
 @Injectable()
 export class AiService {
+  constructor(private storage: StorageService) {}
+
   /**
    * One place to talk to Groq, so every caller gets the same guarantees.
    *
@@ -239,7 +234,9 @@ Respond with only the script text.`;
         },
       ];
       for (const url of batch) {
-        parts.push({ type: 'image_url', image_url: { url: await toDataUrl(url, folder) } });
+        const dataUrl = await imageDataUrl(this.storage, url);
+        if (!dataUrl) return null;
+        parts.push({ type: 'image_url', image_url: { url: dataUrl } });
       }
 
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {

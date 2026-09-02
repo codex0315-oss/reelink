@@ -4,6 +4,7 @@ import { ListingsController } from './listings.controller';
 import { ListingsService } from './listings.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
+import { ModerationModule } from '../moderation/moderation.module';
 
 @Module({
   // Only for reading an optional bearer token on the public detail route, so a
@@ -11,6 +12,7 @@ import { AiModule } from '../ai/ai.module';
   imports: [
     NotificationsModule,
     AiModule,
+    ModerationModule,
     JwtModule.register({ secret: process.env.JWT_SECRET }),
   ],
   controllers: [ListingsController],

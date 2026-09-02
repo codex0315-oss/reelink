@@ -110,6 +110,16 @@ export class ReelsController {
     return this.reelsService.regenerate(req.user.userId, id);
   }
 
+  /** The agent's answer to an automated flag on a quick reel. */
+  @Post(':id/appeal')
+  appeal(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.reelsService.appealModeration(req.user.userId, id, body?.note ?? '');
+  }
+
   @Delete(':id')
   remove(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.reelsService.remove(req.user.userId, id);

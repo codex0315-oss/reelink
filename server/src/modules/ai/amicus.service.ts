@@ -1,6 +1,6 @@
+import { StorageService } from '../storage/storage.service';
+import { imageDataUrl } from './image-data-url';
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { readFile } from 'fs/promises';
-import { basename, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 
 // gpt-oss is the stronger writer but is text-only; qwen is the one on this account
@@ -16,7 +16,10 @@ type ChatTurn = { role: string; content: string; imageUrls: string[] };
 
 @Injectable()
 export class AmicusService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   private get apiKey() {
     const key = process.env.GROQ_API_KEY;
@@ -168,7 +171,8 @@ REEL STATUS: ${reels.length} reel(s) total${rendering ? `, ${rendering} currentl
         { type: 'text', text: latest?.content || 'Look at this property photo.' },
       ];
       for (const url of newImageUrls) {
-        parts.push({ type: 'image_url', image_url: { url: await this.toDataUrl(url) } });
+        const dataUrl = await imageDataUrl(this.storage, url);
+        if (dataUrl) parts.push({ type: 'image_url', image_url: { url: dataUrl } });
       }
       messages.push({ role: 'user', content: parts });
     } else {
@@ -214,11 +218,4 @@ REEL STATUS: ${reels.length} reel(s) total${rendering ? `, ${rendering} currentl
       .trim();
   }
 
-  private async toDataUrl(localUrl: string) {
-    const filename = basename(localUrl);
-    const buffer = await readFile(join(process.cwd(), 'uploads', 'chat', filename));
-    const ext = filename.toLowerCase().split('.').pop();
-    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-    return `data:${mime};base64,${buffer.toString('base64')}`;
-  }
 }

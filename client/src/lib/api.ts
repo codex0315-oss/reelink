@@ -806,3 +806,67 @@ export const removeListingAsAdmin = (token: string, id: string, reason: string) 
 
 export const removeReelAsAdmin = (token: string, id: string, reason: string) =>
   adminRemove(token, `reels/${id}`, reason)
+
+/* ------------------------------------------------------------- moderation */
+
+export type FlaggedListing = {
+  id: string
+  title: string
+  description: string | null
+  price: number
+  photoUrls: string[]
+  moderationStatus: string
+  moderationReason: string | null
+  moderationNote: string | null
+  moderatedAt: string | null
+  user: { id: string; name: string; email: string; avatarUrl: string | null }
+}
+
+export type FlaggedReel = {
+  id: string
+  title: string | null
+  photoUrls: string[]
+  videoUrl: string | null
+  moderationStatus: string
+  moderationReason: string | null
+  moderationNote: string | null
+  moderatedAt: string | null
+  user: { id: string; name: string; email: string; avatarUrl: string | null }
+}
+
+/** Staff: everything the automated check hid, disputes first. */
+export async function fetchFlagged(token: string) {
+  const res = await apiFetch(`${API_URL}/admin/flagged`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load the review queue')
+  return res.json() as Promise<{ listings: FlaggedListing[]; reels: FlaggedReel[] }>
+}
+
+/** Staff overruling the check, which puts the item back in front of buyers. */
+export async function clearFlag(token: string, kind: 'listing' | 'reel', id: string) {
+  const res = await apiFetch(`${API_URL}/admin/flagged/${kind}/${id}/clear`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not clear that flag')
+  return res.json() as Promise<{ cleared: boolean; title: string }>
+}
+
+/** The agent's side: ask a person to look at an automated decision. */
+export async function appealModeration(
+  token: string,
+  kind: 'listing' | 'reel',
+  id: string,
+  note: string,
+) {
+  const path = kind === 'listing' ? 'listings' : 'reels'
+  const res = await apiFetch(`${API_URL}/${path}/${id}/appeal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ note }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || 'Could not send that for review')
+  return data as { id: string; moderationStatus: string }
+}

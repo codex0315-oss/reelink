@@ -205,6 +205,27 @@ model Listing {
   panoramaLabels String[]
   publishToFacebook Boolean @default(false)
   facebookPostId String?
+
+  /// What the automated check made of this listing.
+  ///
+  /// 'ok'       — passed, or never checked (the model was unavailable). Visible.
+  /// 'flagged'  — the check did not think this is a property. Hidden from Browse,
+  ///              still visible to its owner and to staff.
+  /// 'appealed' — the agent disputes the flag and has asked for a human to look.
+  ///              Still hidden; the difference is that it is now in the queue.
+  /// 'cleared'  — staff looked and disagreed with the check. Visible, and never
+  ///              re-checked, so an edit cannot flag it a second time.
+  ///
+  /// Defaults to 'ok' rather than 'pending' on purpose: the check runs after the row
+  /// is written, and a listing must never be invisible because a background job has
+  /// not got to it yet.
+  moderationStatus String  @default("ok")
+  /// The model's own words for why, shown to the agent and to staff.
+  moderationReason String?
+  /// What the agent said when disputing it.
+  moderationNote   String?
+  moderatedAt      DateTime?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -234,6 +255,16 @@ model Reel {
   listingType    String?
   amenities      String[]
   photoUrls      String[]
+
+  /// Same states and meanings as Listing.moderationStatus.
+  ///
+  /// Only quick reels are ever checked. A reel made from a saved listing inherits
+  /// that listing's photos, which were already examined when it was created — running
+  /// the model over the same images again would cost a call to reach the same answer.
+  moderationStatus String  @default("ok")
+  moderationReason String?
+  moderationNote   String?
+  moderatedAt      DateTime?
 
   // Reels are owned directly, since a standalone reel has no listing to inherit from.
   userId     String

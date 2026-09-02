@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ModerationModule } from '../moderation/moderation.module';
 import { ReelsController } from './reels.controller';
 import { ReelsService } from './reels.service';
 import { Json2VideoService } from './json2video.service';
@@ -7,7 +8,8 @@ import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AiModule, NotificationsModule],
+  imports: [
+    ModerationModule,AiModule, NotificationsModule],
   controllers: [ReelsController],
   providers: [ReelsService, Json2VideoService, HiggsfieldService],
 })

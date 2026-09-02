@@ -189,6 +189,17 @@ export class ListingsController {
     return this.listingsService.update(req.user.userId, id, dto, photoUrls, panoramaUrls);
   }
 
+  /** The agent's answer to an automated flag: a request for a human to look. */
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/appeal')
+  appeal(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.listingsService.appealModeration(req.user.userId, id, body?.note ?? '');
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   remove(@Req() req: { user: { userId: string } }, @Param('id') id: string) {

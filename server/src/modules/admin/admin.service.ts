@@ -626,6 +626,103 @@ export class AdminService {
     return { user, listings, reels, feedback, rendersThisWeek: renders };
   }
 
+  /* ------------------------------------------------------- moderation queue */
+
+  /**
+   * Everything the automated check hid, with disputes first.
+   *
+   * An agent who says the machine got it wrong is waiting on a person; one who has not
+   * said anything may simply have posted a car. The order reflects who is blocked.
+   */
+  async flagged() {
+    const [listings, reels] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { moderationStatus: { in: ['flagged', 'appealed'] } },
+        orderBy: [{ moderationStatus: 'asc' }, { moderatedAt: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          price: true,
+          photoUrls: true,
+          moderationStatus: true,
+          moderationReason: true,
+          moderationNote: true,
+          moderatedAt: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.reel.findMany({
+        where: { moderationStatus: { in: ['flagged', 'appealed'] } },
+        orderBy: [{ moderationStatus: 'asc' }, { moderatedAt: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          photoUrls: true,
+          videoUrl: true,
+          moderationStatus: true,
+          moderationReason: true,
+          moderationNote: true,
+          moderatedAt: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }),
+    ]);
+
+    return { listings, reels };
+  }
+
+  /**
+   * Staff disagreeing with the check. Sets 'cleared' rather than 'ok' so the item is
+   * never examined again — an edit would otherwise send it back through and flag it a
+   * second time, which from the agent's side looks like the decision was ignored.
+   */
+  async clearFlag(kind: 'listing' | 'reel', id: string) {
+    const data = {
+      moderationStatus: 'cleared',
+      moderationReason: null,
+      moderatedAt: new Date(),
+    };
+
+    if (kind === 'listing') {
+      const listing = await this.prisma.listing.findUnique({
+        where: { id },
+        select: { userId: true, title: true },
+      });
+      if (!listing) throw new NotFoundException('Listing not found');
+
+      await this.prisma.listing.update({ where: { id }, data });
+      await this.notifications
+        .create(
+          listing.userId,
+          'listing',
+          'Your listing is live again',
+          `"${listing.title}" has been reviewed and is visible to buyers.`,
+          id,
+        )
+        .catch(() => undefined);
+      return { cleared: true, title: listing.title };
+    }
+
+    const reel = await this.prisma.reel.findUnique({
+      where: { id },
+      select: { userId: true, title: true },
+    });
+    if (!reel) throw new NotFoundException('Reel not found');
+
+    await this.prisma.reel.update({ where: { id }, data });
+    await this.notifications
+      .create(
+        reel.userId,
+        'reel',
+        'Your reel is live again',
+        `"${reel.title ?? 'Your reel'}" has been reviewed and is back in the feed.`,
+        id,
+      )
+      .catch(() => undefined);
+    return { cleared: true, title: reel.title ?? 'Reel' };
+  }
+
   /* --------------------------------------------------------------- moderation */
 
   /**

@@ -1,3 +1,4 @@
+import { clientUrl } from '../../common/client-url';
 /**
  * Email markup, kept deliberately plain.
  *
@@ -184,4 +185,44 @@ export function verifyEmailCode(name: string, code: string, minutes: number) {
   ].join('\n');
 
   return { subject: `${code} is your Reelink verification code`, html, text };
+}
+
+/**
+ * Sent to staff when the automated check hides something.
+ *
+ * The point of this message is that it arrives when nobody is signed in, so it carries
+ * enough to judge urgency from the inbox alone: who posted it, what it was called, and
+ * the model's reason. The item is already hidden from buyers by the time this is sent,
+ * so it is a prompt to review rather than an alarm to act on immediately.
+ */
+export function flaggedListingEmail(input: {
+  adminName: string;
+  agentName: string;
+  kind: string;
+  title: string;
+  reason: string;
+}) {
+  const url = `${clientUrl()}/admin`;
+
+  const html = shell(
+    `A ${input.kind} was flagged for review`,
+    `${p(`Hi ${input.adminName}, the automated check did not think this looks like a property listing, so it is hidden from buyers until you decide.`)}
+     <div style="margin:0 0 18px;padding:16px 18px;background:#F4F6FA;border-radius:10px;border:1px solid rgba(11,41,82,0.08);">
+       <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:${INK};">${input.title}</p>
+       <p style="margin:0 0 10px;font-size:13px;color:${MUTED};">Posted by ${input.agentName}</p>
+       <p style="margin:0;font-size:14px;line-height:1.6;color:${INK};">${input.reason}</p>
+     </div>
+     ${p('The check is deliberately cautious and does get this wrong — vacant lots and unfinished builds are the usual false alarms. Nothing has been deleted.')}
+     ${button(url, 'Open the admin panel')}`,
+  );
+
+  const text = `A ${input.kind} was flagged for review
+
+"${input.title}" — posted by ${input.agentName}
+Reason: ${input.reason}
+
+It is hidden from buyers until you decide. Nothing has been deleted.
+Review it: ${url}`;
+
+  return { subject: `Reelink: a ${input.kind} needs review`, html, text };
 }

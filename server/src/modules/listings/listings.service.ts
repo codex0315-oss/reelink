@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateListingDto } from './dto/create-listing.dto';
@@ -9,6 +10,7 @@ import { UpdateListingDto } from './dto/update-listing.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { StorageService } from '../storage/storage.service';
+import { ModerationService } from '../moderation/moderation.service';
 
 @Injectable()
 export class ListingsService {
@@ -17,6 +19,7 @@ export class ListingsService {
     private notificationsService: NotificationsService,
     private aiService: AiService,
     private storage: StorageService,
+    private moderation: ModerationService,
   ) {}
 
   /**
@@ -67,7 +70,61 @@ export class ListingsService {
 
     void this.labelPanoramasInBackground(listing.id, panoramaUrls);
 
+    // Detached, after the row exists. Running it first would make every agent wait on
+    // a vision call to save their own work, and would let an outage at Groq stop
+    // listings being created at all. The verdict reaches them seconds later over the
+    // socket they already hold open.
+    void this.moderation.checkListing(listing.id);
+
     return listing;
+  }
+
+  /**
+   * The agent's side of a flag: "you have this wrong, please look."
+   *
+   * Does not unhide anything. It moves the listing into the queue and records what
+   * they said, so a wrong verdict is answerable without handing the person who was
+   * flagged the power to un-flag themselves.
+   */
+  async appealModeration(userId: string, id: string, note: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: { id: true, userId: true, title: true, moderationStatus: true },
+    });
+    if (!listing) throw new NotFoundException('Listing not found');
+    if (listing.userId !== userId) throw new ForbiddenException('Not your listing');
+    if (listing.moderationStatus !== 'flagged') {
+      throw new BadRequestException('This listing is not awaiting review');
+    }
+
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: {
+        moderationStatus: 'appealed',
+        moderationNote: note.trim().slice(0, 500) || null,
+      },
+      select: { id: true, moderationStatus: true },
+    });
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: 'admin' },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((admin) =>
+        this.notificationsService
+          .create(
+            admin.id,
+            'moderation',
+            'An agent disputed a flag',
+            `"${listing.title}" was flagged automatically and the agent says it is genuine.`,
+            listing.id,
+          )
+          .catch(() => undefined),
+      ),
+    );
+
+    return updated;
   }
 
   /**
@@ -101,6 +158,11 @@ export class ListingsService {
 
   findAll() {
     return this.prisma.listing.findMany({
+      // Anything the automated check hid stays out of Browse until a human decides.
+      // Written as "not in" rather than "equals ok" so a state added later is visible
+      // by default — a listing disappearing because of a new enum value would be a
+      // silent failure, while an unreviewed one showing up is merely a visible one.
+      where: { moderationStatus: { notIn: ['flagged', 'appealed'] } },
       orderBy: { createdAt: 'desc' },
       // avatarUrl so Browse can show who listed the property, not just their name.
       include: { user: { select: { id: true, name: true, avatarUrl: true } } },

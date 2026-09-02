@@ -1,6 +1,15 @@
 import { assetUrl } from '../lib/config'
 import { useState } from 'react'
-import { Pencil, Trash2, Home, Ruler, Sofa, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Pencil,
+  Trash2,
+  Home,
+  Ruler,
+  Sofa,
+  ChevronLeft,
+  ChevronRight,
+  EyeOff,
+} from 'lucide-react'
 
 type Listing = {
   id: string
@@ -12,6 +21,9 @@ type Listing = {
   floorArea?: number
   lotArea?: number
   user?: { id: string; name: string; avatarUrl?: string | null }
+  /** 'flagged' or 'appealed' means buyers cannot see this yet. */
+  moderationStatus?: string
+  moderationReason?: string | null
 }
 
 type Props = {
@@ -20,9 +32,18 @@ type Props = {
   onClick: () => void
   onEdit?: () => void
   onDelete?: () => void
+  /** Offered only to the owner, and only while the listing is held. */
+  onAppeal?: () => void
 }
 
-export default function ListingCard({ listing, isOwner, onClick, onEdit, onDelete }: Props) {
+export default function ListingCard({
+  listing,
+  isOwner,
+  onClick,
+  onEdit,
+  onDelete,
+  onAppeal,
+}: Props) {
   const [photoIndex, setPhotoIndex] = useState(0)
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({})
 
@@ -31,6 +52,9 @@ export default function ListingCard({ listing, isOwner, onClick, onEdit, onDelet
   const currentPhoto = photos[photoIndex]
   const hasPhoto = currentPhoto && !imgErrors[photoIndex]
   const isForRent = listing.listingType === 'rent'
+  const held =
+    listing.moderationStatus === 'flagged' || listing.moderationStatus === 'appealed'
+  const disputed = listing.moderationStatus === 'appealed'
 
   function goPrev(e: React.MouseEvent) {
     e.stopPropagation()
@@ -43,7 +67,39 @@ export default function ListingCard({ listing, isOwner, onClick, onEdit, onDelet
   }
 
   return (
-    <div className="bg-card rounded-2xl border border-ink/10 overflow-hidden group hover:border-gold/50 hover:shadow-xl hover:shadow-navy/10 hover:-translate-y-1 transition-all duration-200">
+    <div
+      className={`bg-card rounded-2xl border overflow-hidden group hover:shadow-xl hover:shadow-navy/10 hover:-translate-y-1 transition-all duration-200 ${
+        held ? 'border-gold/50' : 'border-ink/10 hover:border-gold/50'
+      }`}
+    >
+      {/* Only the owner is told. To everyone else the listing simply is not in Browse,
+          and announcing "this was flagged" on a card a buyer might somehow reach would
+          be an accusation the automated check is not reliable enough to make. */}
+      {held && isOwner && (
+        <div className="px-3.5 py-2.5 bg-gold/10 border-b border-gold/25">
+          <p className="flex items-start gap-1.5 text-[11px] font-bold text-gold-dark">
+            <EyeOff size={12} className="shrink-0 mt-0.5" />
+            {disputed ? 'Being reviewed by staff' : 'Hidden from buyers while we check it'}
+          </p>
+          {listing.moderationReason && (
+            <p className="text-[11px] text-ink/55 mt-1 leading-snug">
+              {listing.moderationReason}
+            </p>
+          )}
+          {!disputed && onAppeal && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onAppeal()
+              }}
+              className="mt-1.5 text-[11px] font-bold text-gold-dark underline underline-offset-2 hover:text-ink transition-colors"
+            >
+              This is a real property — ask someone to check
+            </button>
+          )}
+        </div>
+      )}
+
       <div onClick={onClick} className="cursor-pointer">
         <div className="relative h-44 bg-ink/5 overflow-hidden">
           {hasPhoto ? (

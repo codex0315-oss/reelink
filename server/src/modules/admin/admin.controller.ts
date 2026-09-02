@@ -94,6 +94,18 @@ export class AdminController {
     return this.admin.userDetail(id);
   }
 
+  /** Everything the automated check hid, disputes first. */
+  @Get('flagged')
+  flagged() {
+    return this.admin.flagged();
+  }
+
+  /** Staff overruling the check, which puts the item back in front of buyers. */
+  @Patch('flagged/:kind/:id/clear')
+  clearFlag(@Param('kind') kind: string, @Param('id') id: string) {
+    return this.admin.clearFlag(kind === 'reel' ? 'reel' : 'listing', id);
+  }
+
   /**
    * Removal, not deletion by the owner. Both take a reason, which is required and is
    * sent on to whoever's work is being taken down.

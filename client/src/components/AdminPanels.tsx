@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   AlertTriangle,
   BadgeCheck,
@@ -6,6 +6,8 @@ import {
   Home,
   Star,
   Users2,
+  ShieldCheck,
+  Check,
 } from 'lucide-react'
 import {
   fetchAdminActivity,
@@ -16,9 +18,14 @@ import {
   type AdminTrends,
   type AdminHealth,
   type AdminAiUsage,
+  fetchFlagged,
+  clearFlag,
+  type FlaggedListing,
+  type FlaggedReel,
 } from '../lib/api'
 import Sparkline from './Sparkline'
-import { Section, Stat, ago } from './adminUi'
+import { Section, Stat, Avatar, ago } from './adminUi'
+import { assetUrl } from '../lib/config'
 
 /* ------------------------------------------------------------------ activity */
 
@@ -328,6 +335,171 @@ export function AiUsage({ token }: { token: string }) {
         Written copy and Amicus run on a free tier today, so those are shown as volume —
         what matters there is whether usage is nearing a limit, not a bill.
       </p>
+    </div>
+  )
+}
+
+/* ---------------------------------------------------------------- flagged */
+
+/**
+ * What the automated check hid, waiting on a person.
+ *
+ * Shows the model's reason and the photos side by side, because the reason on its own
+ * is not enough to judge by — the whole point of a human step is that they look at the
+ * thing. Disputes come first: an agent who has said "this is genuine" is blocked on
+ * staff, while one who has said nothing may simply have posted a car.
+ */
+export function Flagged({ token }: { token: string }) {
+  const [data, setData] = useState<{
+    listings: FlaggedListing[]
+    reels: FlaggedReel[]
+  } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    fetchFlagged(token)
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+  }, [token])
+
+  useEffect(load, [load])
+
+  async function clear(kind: 'listing' | 'reel', id: string) {
+    setBusy(id)
+    setError('')
+    try {
+      await clearFlag(token, kind, id)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not clear that flag')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (error) return <p className="text-sm text-danger py-10 text-center">{error}</p>
+  if (!data) return <p className="text-sm text-ink/40 py-10 text-center">Loading…</p>
+
+  const total = data.listings.length + data.reels.length
+  if (total === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-12 h-12 rounded-xl bg-ink/5 mx-auto mb-3 flex items-center justify-center">
+          <ShieldCheck size={20} className="text-ink/25" />
+        </div>
+        <p className="font-bold text-ink text-sm">Nothing waiting</p>
+        <p className="text-xs text-ink/50 mt-1">
+          Listings and reels the automated check hides appear here for you to decide on.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-ink/50 leading-relaxed bg-card rounded-2xl border border-ink/10 p-4">
+        These are hidden from buyers. The check is deliberately cautious and does get it
+        wrong — vacant lots and unfinished builds are the usual false alarms. Clearing
+        one puts it back and stops it ever being checked again. To take something down
+        for good, open the agent under Users and remove it there.
+      </p>
+
+      {data.listings.map((l) => (
+        <FlaggedCard
+          key={l.id}
+          title={l.title}
+          subtitle={`₱${l.price.toLocaleString()}`}
+          photos={l.photoUrls}
+          item={l}
+          busy={busy === l.id}
+          onClear={() => clear('listing', l.id)}
+        />
+      ))}
+
+      {data.reels.map((r) => (
+        <FlaggedCard
+          key={r.id}
+          title={r.title ?? 'Untitled reel'}
+          subtitle="Quick reel"
+          photos={r.photoUrls}
+          item={r}
+          busy={busy === r.id}
+          onClear={() => clear('reel', r.id)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function FlaggedCard({
+  title,
+  subtitle,
+  photos,
+  item,
+  busy,
+  onClear,
+}: {
+  title: string
+  subtitle: string
+  photos: string[]
+  item: FlaggedListing | FlaggedReel
+  busy: boolean
+  onClear: () => void
+}) {
+  const disputed = item.moderationStatus === 'appealed'
+
+  return (
+    <div className="bg-card rounded-2xl border border-ink/10 p-4">
+      <div className="flex items-start gap-3">
+        <Avatar user={item.user} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-ink text-sm">{title}</span>
+            {disputed && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-gold/15 text-gold-dark">
+                Disputed
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-ink/50">
+            {subtitle} · {item.user.name} · {item.moderatedAt ? ago(item.moderatedAt) : ''}
+          </div>
+        </div>
+        <button
+          onClick={onClear}
+          disabled={busy}
+          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gold text-navy-dark text-xs font-bold hover:bg-gold-dark transition-all disabled:opacity-50"
+        >
+          <Check size={13} />
+          Allow it
+        </button>
+      </div>
+
+      {photos.length > 0 && (
+        <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">
+          {photos.slice(0, 6).map((url) => (
+            <img
+              key={url}
+              src={assetUrl(url)}
+              alt=""
+              className="w-24 h-24 rounded-xl object-cover shrink-0 border border-ink/10"
+            />
+          ))}
+        </div>
+      )}
+
+      {item.moderationReason && (
+        <p className="text-xs text-ink/70 mt-3 px-3 py-2 rounded-lg bg-ink/5">
+          <span className="font-bold">The check said:</span> {item.moderationReason}
+        </p>
+      )}
+
+      {item.moderationNote && (
+        <p className="text-xs text-ink/70 mt-2 px-3 py-2 rounded-lg bg-gold/10 border border-gold/20">
+          <span className="font-bold">{item.user.name} says:</span> {item.moderationNote}
+        </p>
+      )}
     </div>
   )
 }
