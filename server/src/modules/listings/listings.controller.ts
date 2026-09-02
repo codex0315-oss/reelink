@@ -21,6 +21,7 @@ import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { StorageService } from '../storage/storage.service';
+import { AgentOnlyGuard } from '../../common/agent-only.guard';
 import {
   readImageSizeFromBuffer,
   isPanoramaShaped,
@@ -108,7 +109,9 @@ export class ListingsController {
     private storage: StorageService,
   ) {}
 
-  @UseGuards(AuthGuard('jwt'))
+  // Staff run the platform rather than sell on it. Enforced here and not only in the
+  // client, since a hidden button is still a reachable endpoint.
+  @UseGuards(AuthGuard('jwt'), AgentOnlyGuard)
   @Post()
   @UseInterceptors(FileFieldsInterceptor(LISTING_FIELDS, listingUpload))
   async create(

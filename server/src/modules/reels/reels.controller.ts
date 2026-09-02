@@ -22,6 +22,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ReelsService } from './reels.service';
 import { QuickReelDto } from './dto/quick-reel.dto';
 import { listTemplates } from './reel-templates';
+import { AgentOnlyGuard } from '../../common/agent-only.guard';
 import { StorageService } from '../storage/storage.service';
 
 const photoFileFilter = (
@@ -56,6 +57,7 @@ export class ReelsController {
     return this.reelsService.quotaFor(req.user.userId);
   }
 
+  @UseGuards(AgentOnlyGuard)
   @Post('generate/:listingId')
   generate(
     @Req() req: { user: { userId: string } },
@@ -71,6 +73,7 @@ export class ReelsController {
   }
 
   // Reel from photos + details typed in directly, with no listing behind it.
+  @UseGuards(AgentOnlyGuard)
   @Post('quick')
   @UseInterceptors(
     FilesInterceptor('photos', 10, {
@@ -101,6 +104,7 @@ export class ReelsController {
     return this.reelsService.findFeed();
   }
 
+  @UseGuards(AgentOnlyGuard)
   @Post(':id/regenerate')
   regenerate(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.reelsService.regenerate(req.user.userId, id);

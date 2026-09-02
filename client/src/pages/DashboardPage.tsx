@@ -128,6 +128,20 @@ const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: 'settings', label: 'Settings', icon: SettingsIcon },
 ]
 
+/**
+ * What staff see here instead.
+ *
+ * An admin account runs the platform rather than sells on it, so the agent dashboard —
+ * the overview, their listings, their reels, their leads — has nothing to show and no
+ * actions it could offer. What remains is the inbox, because an admin already in a
+ * conversation should not disappear from it, plus Browse so staff can see the product
+ * as users do, and Settings for their own account.
+ *
+ * The server refuses posting from an admin regardless; this is what keeps the interface
+ * honest about it rather than offering buttons that would fail.
+ */
+const ADMIN_TABS: Tab[] = ['browse', 'messages', 'settings']
+
 export default function DashboardPage() {
   const { logout, user, token } = useAuth()
   const { isLight } = useTheme()
@@ -142,6 +156,16 @@ export default function DashboardPage() {
   const [browseListings, setBrowseListings] = useState<Listing[]>([])
   const [browseLoading, setBrowseLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const isAdmin = user?.role === 'admin'
+  const visibleNav = isAdmin
+    ? navItems.filter((item) => ADMIN_TABS.includes(item.key))
+    : navItems
+
+  // The role arrives after the first paint, so the default tab has to be corrected
+  // once it does — otherwise staff land on an agent overview that has nothing in it.
+  useEffect(() => {
+    if (isAdmin && !ADMIN_TABS.includes(activeTab)) setActiveTab('messages')
+  }, [isAdmin, activeTab])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingListing, setEditingListing] = useState<Listing | null>(null)
@@ -483,7 +507,7 @@ export default function DashboardPage() {
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon
             return (
               <button

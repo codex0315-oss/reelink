@@ -17,6 +17,8 @@ import {
 } from '../lib/api'
 import { Section, Stat, Avatar } from '../components/adminUi'
 import { Activity, Trends, Health, AiUsage } from '../components/AdminPanels'
+import ReasonDialog from '../components/ReasonDialog'
+import UserDetail from '../components/UserDetail'
 
 type Tab =
   | 'overview'
@@ -204,6 +206,8 @@ function Verifications({ token }: { token: string }) {
   const [items, setItems] = useState<VerificationRequest[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
+  /** The request whose decline is being explained, held so the dialog can name it. */
+  const [declining, setDeclining] = useState<VerificationRequest | null>(null)
 
   const load = useCallback(() => {
     fetchVerifications(token)
@@ -213,15 +217,13 @@ function Verifications({ token }: { token: string }) {
 
   useEffect(load, [load])
 
-  async function review(id: string, approve: boolean) {
-    // A rejection with no reason leaves the agent nothing to act on, so it is required.
-    const note = approve ? undefined : window.prompt('Why is this being declined?') || undefined
-    if (!approve && !note) return
-
+  /** Approving needs no explanation; declining does, so it goes through the dialog. */
+  async function review(id: string, approve: boolean, note?: string) {
     setBusy(id)
     setError('')
     try {
       await reviewVerification(token, id, approve, note)
+      setDeclining(null)
       load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save that decision')
@@ -270,7 +272,7 @@ function Verifications({ token }: { token: string }) {
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => review(r.id, false)}
+              onClick={() => setDeclining(r)}
               disabled={busy === r.id}
               className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-ink/15 text-xs font-bold text-ink/60 hover:border-danger hover:text-danger transition-all disabled:opacity-50"
             >
@@ -288,6 +290,17 @@ function Verifications({ token }: { token: string }) {
           </div>
         </div>
       ))}
+
+      <ReasonDialog
+        open={!!declining}
+        title={`Decline ${declining?.user.name ?? ''}?`}
+        description="They will be told their licence was not approved, along with the reason, so they can correct it and try again."
+        placeholder="e.g. The licence number does not match PRC records."
+        confirmLabel="Decline request"
+        loading={busy === declining?.id}
+        onConfirm={(reason) => declining && review(declining.id, false, reason)}
+        onCancel={() => setDeclining(null)}
+      />
     </div>
   )
 }
@@ -300,6 +313,10 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
   const [total, setTotal] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
+  /** The account whose suspension is being explained. */
+  const [suspending, setSuspending] = useState<AdminUser | null>(null)
+  /** The account whose detail screen is open, if any. */
+  const [viewing, setViewing] = useState<AdminUser | null>(null)
 
   const load = useCallback(
     (q: string) => {
@@ -319,17 +336,17 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
     return () => window.clearTimeout(timer)
   }, [search, load])
 
-  async function toggleSuspension(u: AdminUser) {
-    const suspending = !u.suspendedAt
-    const reason = suspending
-      ? window.prompt(`Why is ${u.name} being suspended?`) || undefined
-      : undefined
-    if (suspending && !reason) return
-
+  /**
+   * Lifting a suspension needs no explanation, so it runs straight away. Applying one
+   * does, and goes through the dialog — the reason is what the person sees when they
+   * next try to sign in.
+   */
+  async function setSuspension(u: AdminUser, suspending: boolean, reason?: string) {
     setBusy(u.id)
     setError('')
     try {
       await setUserSuspension(token, u.id, suspending, reason)
+      setSuspending(null)
       load(search)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not update that account')
@@ -370,9 +387,16 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
               >
                 <Avatar user={u} />
 
-                <div className="min-w-0 flex-1">
+                {/* The whole block opens the account, so the target is the row rather
+                    than a small "view" link beside the one action already there. */}
+                <button
+                  onClick={() => setViewing(u)}
+                  className="min-w-0 flex-1 text-left group"
+                >
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-bold text-ink text-sm truncate">{u.name}</span>
+                    <span className="font-bold text-ink text-sm truncate group-hover:text-gold-dark transition-colors">
+                      {u.name}
+                    </span>
                     {u.isVerified && <BadgeCheck size={13} className="text-gold-dark shrink-0" />}
                     {u.role === 'admin' && (
                       <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-ink/10 text-ink/60">
@@ -391,13 +415,15 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
                       Suspended{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
                     </div>
                   )}
-                </div>
+                </button>
 
                 {/* No button for admins or for yourself: the server refuses both, so
                     offering one would only ever produce an error. */}
                 {u.role !== 'admin' && u.id !== currentUserId && (
                   <button
-                    onClick={() => toggleSuspension(u)}
+                    onClick={() =>
+                      u.suspendedAt ? setSuspension(u, false) : setSuspending(u)
+                    }
                     disabled={busy === u.id}
                     className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
                       u.suspendedAt
@@ -413,6 +439,26 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
             ))}
           </div>
         </>
+      )}
+
+      <ReasonDialog
+        open={!!suspending}
+        title={`Suspend ${suspending?.name ?? ''}?`}
+        description="They will be signed out and unable to sign back in. The reason is shown to them when they try."
+        placeholder="e.g. Listings are not genuine properties."
+        confirmLabel="Suspend account"
+        loading={busy === suspending?.id}
+        onConfirm={(reason) => suspending && setSuspension(suspending, true, reason)}
+        onCancel={() => setSuspending(null)}
+      />
+
+      {viewing && (
+        <UserDetail
+          token={token}
+          user={viewing}
+          onClose={() => setViewing(null)}
+          onChanged={() => load(search)}
+        />
       )}
     </div>
   )
