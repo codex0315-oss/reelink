@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/c
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { assertNotSuspended } from '../../../common/suspension';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -27,19 +28,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: string; email: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true, suspendedAt: true, suspendedReason: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        suspendedUntil: true,
+      },
     });
 
     // Deleted since the token was issued.
     if (!user) throw new UnauthorizedException('Session expired');
 
-    if (user.suspendedAt) {
-      throw new ForbiddenException(
-        user.suspendedReason
-          ? `Your account has been suspended: ${user.suspendedReason}`
-          : 'Your account has been suspended. Contact support if you think this is a mistake.',
-      );
-    }
+    // Shared with login, so both doors apply the same rule — and so a suspension
+    // with an end date lifts itself the first time the account is used after it.
+    await assertNotSuspended(this.prisma, user);
 
     return { userId: user.id, email: user.email, role: user.role };
   }

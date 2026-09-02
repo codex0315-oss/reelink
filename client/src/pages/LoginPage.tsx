@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useWakingServer } from '../hooks/useWakingServer'
 import { loginAgent } from '../lib/api'
@@ -10,7 +10,13 @@ import { LIMITS } from '../lib/limits'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  // Seeded from navigation state when the session ended for a reason worth stating —
+  // a suspension applied while they were signed in. Without it they were simply
+  // returned to the login page with no idea why, and signing in again would fail with
+  // the same message they never saw.
+  const location = useLocation()
+  const notice = (location.state as { notice?: string } | null)?.notice
+  const [error, setError] = useState(notice ?? '')
   const [loading, setLoading] = useState(false)
   const { login, token } = useAuth()
   const waking = useWakingServer(loading)

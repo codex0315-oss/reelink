@@ -40,6 +40,15 @@ model User {
   suspendedAt DateTime?
   /// Shown to the user on their way out, and to staff reviewing the decision later.
   suspendedReason String?
+  /// When the suspension lifts by itself. Null means indefinite — it ends only when
+  /// staff restore the account.
+  ///
+  /// Nothing sweeps this on a timer. It is compared against the clock wherever a
+  /// suspension is checked, and cleared there when it has passed, so an account comes
+  /// back the moment its owner next tries to use it. A scheduled job would be a second
+  /// mechanism that could disagree with the first, and would restore accounts nobody
+  /// was asking about.
+  suspendedUntil DateTime?
 
   // In-app notification preferences. Default on so the app feels alive for new
   // users, and each can be switched off independently from Settings.

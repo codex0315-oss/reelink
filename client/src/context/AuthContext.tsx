@@ -70,10 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // kept rendering a signed-in shell over data it could no longer fetch.
   useEffect(
     () =>
-      onSessionExpired(() => {
+      onSessionExpired((reason) => {
         setToken(null)
         setUser(null)
-        navigate('/login', { replace: true })
+        // Carried in navigation state rather than a query string: it is a sentence
+        // about someone's account, and it has no business sitting in a URL they might
+        // share, bookmark, or leave in their history.
+        navigate('/login', { replace: true, state: reason ? { notice: reason } : undefined })
       }),
     [navigate],
   )

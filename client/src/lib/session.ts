@@ -49,7 +49,8 @@ export function clearSession() {
 
 /* -------------------------------------------------------------- expiry signal */
 
-type Listener = () => void
+/** `reason` is set only when the server explained itself — today, a suspension. */
+type Listener = (reason?: string) => void
 const expiryListeners = new Set<Listener>()
 
 /** AuthContext subscribes so React state clears when a renewal finally fails. */
@@ -63,9 +64,26 @@ export function onSessionExpired(listener: Listener): () => void {
   }
 }
 
-function sessionExpired() {
+function sessionExpired(reason?: string) {
   clearSession()
-  expiryListeners.forEach((l) => l())
+  expiryListeners.forEach((l) => l(reason))
+}
+
+/**
+ * Whether a 403 is "your account is suspended" rather than "not your listing".
+ *
+ * Read from the body, and from a clone so the original response is still readable by
+ * whoever called us — a Response body can only be consumed once, and quietly draining
+ * it here would break every caller that expects to parse its own error.
+ */
+async function isSuspensionResponse(res: Response): Promise<string | null> {
+  try {
+    const data = (await res.clone().json()) as { message?: unknown }
+    const message = typeof data.message === 'string' ? data.message : ''
+    return /suspended/i.test(message) ? message : null
+  } catch {
+    return null
+  }
 }
 
 /* -------------------------------------------------------------- renewal */
@@ -141,6 +159,19 @@ const NO_RETRY = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logou
  */
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(url, init)
+
+  // A suspension is a 403, not a 401, so none of the renewal machinery below applies —
+  // and without this the session simply carried on with every request refused. What the
+  // suspended person saw was an app that opened and then showed nothing, because the
+  // dashboard's loaders swallow their errors. Ending the session here is what turns
+  // that into being told.
+  if (res.status === 403 && !NO_RETRY.some((path) => url.includes(path))) {
+    const suspended = await isSuspensionResponse(res)
+    if (suspended) {
+      sessionExpired(suspended)
+      return res
+    }
+  }
 
   if (res.status !== 401) return res
   if (NO_RETRY.some((path) => url.includes(path))) return res

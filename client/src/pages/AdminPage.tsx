@@ -344,11 +344,16 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
    * does, and goes through the dialog — the reason is what the person sees when they
    * next try to sign in.
    */
-  async function setSuspension(u: AdminUser, suspending: boolean, reason?: string) {
+  async function setSuspension(
+    u: AdminUser,
+    suspending: boolean,
+    reason?: string,
+    days?: number,
+  ) {
     setBusy(u.id)
     setError('')
     try {
-      await setUserSuspension(token, u.id, suspending, reason)
+      await setUserSuspension(token, u.id, suspending, reason, days)
       setSuspending(null)
       load(search)
     } catch (e) {
@@ -416,6 +421,11 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
                   {u.suspendedAt && (
                     <div className="text-[11px] text-danger mt-1">
                       Suspended{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
+                      {/* Says when it ends, so staff can tell a cooling-off period from
+                          a permanent removal without opening anything. */}
+                      {u.suspendedUntil
+                        ? ` · lifts ${new Date(u.suspendedUntil).toLocaleDateString()}`
+                        : ' · indefinite'}
                     </div>
                   )}
                 </button>
@@ -447,11 +457,14 @@ function Users({ token, currentUserId }: { token: string; currentUserId: string 
       <ReasonDialog
         open={!!suspending}
         title={`Suspend ${suspending?.name ?? ''}?`}
-        description="They will be signed out and unable to sign back in. The reason is shown to them when they try."
+        description="They will be signed out and unable to sign back in. The reason is shown to them when they try, along with when it lifts."
         placeholder="e.g. Listings are not genuine properties."
         confirmLabel="Suspend account"
+        withDuration
         loading={busy === suspending?.id}
-        onConfirm={(reason) => suspending && setSuspension(suspending, true, reason)}
+        onConfirm={(reason, days) =>
+          suspending && setSuspension(suspending, true, reason, days)
+        }
         onCancel={() => setSuspending(null)}
       />
 

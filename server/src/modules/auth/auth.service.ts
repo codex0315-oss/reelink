@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertNotSuspended } from '../../common/suspension';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MailService } from '../mail/mail.service';
@@ -65,6 +66,14 @@ export class AuthService {
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // This door had no check at all. The JWT guard rejected every request a suspended
+    // account made afterwards, but the account could still sign in and be handed a
+    // working token — and because the dashboard's loaders fail quietly, what the
+    // suspended person saw was an app that opened and then showed nothing, with no
+    // explanation. Checked after the password so a stranger cannot use the message to
+    // learn which addresses are registered.
+    await assertNotSuspended(this.prisma, user);
 
     return this.generateToken(user.id, user.email);
   }
@@ -305,6 +314,11 @@ export class AuthService {
       where: { id: record.id },
       data: { revokedAt: new Date() },
     });
+
+    // The third door. A suspended account holding a valid refresh token could keep
+    // minting access tokens here; each one was then rejected by the guard, but the
+    // session never ended and the person was never told why.
+    await assertNotSuspended(this.prisma, record.user);
 
     return this.issueTokens(record.user.id, record.user.email);
   }

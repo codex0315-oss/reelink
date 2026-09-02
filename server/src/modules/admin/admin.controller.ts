@@ -38,13 +38,14 @@ export class AdminController {
   setSuspension(
     @Req() req: Actor,
     @Param('id') id: string,
-    @Body() body: { suspended: boolean; reason?: string },
+    @Body() body: { suspended: boolean; reason?: string; days?: number },
   ) {
     return this.admin.setSuspended(
       req.user.userId,
       id,
       body?.suspended === true,
       body?.reason,
+      body?.days,
     );
   }
 

@@ -19,6 +19,7 @@ const USER_FIELDS = {
   isVerified: true,
   suspendedAt: true,
   suspendedReason: true,
+  suspendedUntil: true,
   createdAt: true,
   lastSeenAt: true,
 } as const;
@@ -125,12 +126,17 @@ export class AdminService {
    * An admin cannot suspend themselves or another admin. The first is a foot-gun that
    * locks staff out of their own tool; the second means one compromised admin account
    * cannot disable the others before doing damage.
+   *
+   * @param days how long it lasts. Undefined or 0 means indefinite — it ends only when
+   *   staff restore the account. Anything else sets a deadline the account lifts itself
+   *   on, the first time its owner tries to use it after that.
    */
   async setSuspended(
     actorId: string,
     userId: string,
     suspended: boolean,
     reason?: string,
+    days?: number,
   ) {
     if (actorId === userId) {
       throw new BadRequestException('You cannot suspend your own account');
@@ -145,11 +151,20 @@ export class AdminService {
       throw new BadRequestException('Admin accounts cannot be suspended from here');
     }
 
+    // Clamped rather than trusted: this arrives from a request body, and a suspension
+    // measured in centuries is a typo, not an intention.
+    const span = Number(days);
+    const until =
+      suspended && Number.isFinite(span) && span > 0
+        ? new Date(Date.now() + Math.min(span, 365) * 24 * 60 * 60 * 1000)
+        : null;
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         suspendedAt: suspended ? new Date() : null,
         suspendedReason: suspended ? (reason?.trim() || null) : null,
+        suspendedUntil: until,
       },
       select: USER_FIELDS,
     });
@@ -162,6 +177,17 @@ export class AdminService {
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+    } else {
+      // Restoring by hand should say so. A timed suspension that simply lapses is
+      // silent by design — nobody is around to have decided anything.
+      await this.notifications
+        .create(
+          userId,
+          'account',
+          'Your account has been restored',
+          'You can sign in and use Reelink again.',
+        )
+        .catch(() => undefined);
     }
 
     return user;

@@ -480,6 +480,8 @@ export type AdminUser = {
   isVerified: boolean
   suspendedAt?: string | null
   suspendedReason?: string | null
+  /** When it lifts by itself. Null means it stays until staff restore the account. */
+  suspendedUntil?: string | null
   createdAt: string
   lastSeenAt?: string | null
   _count: { listings: number; reels: number }
@@ -509,10 +511,12 @@ export const setUserSuspension = (
   userId: string,
   suspended: boolean,
   reason?: string,
+  /** Days until it lifts by itself. 0 or undefined means indefinite. */
+  days?: number,
 ) =>
   adminRequest<AdminUser>(`/users/${userId}/suspension`, token, {
     method: 'PATCH',
-    body: JSON.stringify({ suspended, reason }),
+    body: JSON.stringify({ suspended, reason, days }),
   })
 
 export const fetchVerifications = (token: string, status = 'pending') =>

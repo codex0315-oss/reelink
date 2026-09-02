@@ -13,6 +13,19 @@ import { AlertTriangle, X } from 'lucide-react'
  * The reason is required. Every action this fronts is one somebody may later ask staff
  * to explain, and "no reason recorded" is not an answer.
  */
+/**
+ * The lengths staff can pick from, in days. 0 is indefinite.
+ *
+ * Presets rather than a date picker: these are the spans anyone actually reaches for,
+ * and choosing one is a single tap on a phone where a calendar is four.
+ */
+export const SUSPENSION_DURATIONS = [
+  { days: 1, label: '24 hours' },
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: 0, label: 'Indefinite' },
+] as const
+
 export default function ReasonDialog({
   open,
   title,
@@ -20,6 +33,7 @@ export default function ReasonDialog({
   placeholder,
   confirmLabel = 'Confirm',
   loading = false,
+  withDuration = false,
   onConfirm,
   onCancel,
 }: {
@@ -29,15 +43,23 @@ export default function ReasonDialog({
   placeholder?: string
   confirmLabel?: string
   loading?: boolean
-  onConfirm: (reason: string) => void
+  /** Adds a "how long" choice, for actions that can end by themselves. */
+  withDuration?: boolean
+  onConfirm: (reason: string, days: number) => void
   onCancel: () => void
 }) {
   const [reason, setReason] = useState('')
+  // Seven days by default rather than indefinite: the common case is a warning shot,
+  // and an indefinite ban should be a thing someone chose, not a thing they accepted.
+  const [days, setDays] = useState<number>(7)
 
   // Cleared whenever the dialog opens, so a reason typed for one account can never be
   // submitted against the next one.
   useEffect(() => {
-    if (open) setReason('')
+    if (open) {
+      setReason('')
+      setDays(7)
+    }
   }, [open])
 
   // Escape closes it, which the browser prompt this replaces did not allow.
@@ -84,9 +106,39 @@ export default function ReasonDialog({
             placeholder={placeholder ?? 'Give a reason…'}
             className="w-full px-3.5 py-3 rounded-xl bg-ink/5 border border-ink/10 text-sm text-ink placeholder:text-ink/35 outline-none focus:border-gold/50 transition-colors resize-none disabled:opacity-50"
           />
-          <p className="text-[11px] text-ink/40 mt-1.5 mb-5">
+          <p className="text-[11px] text-ink/40 mt-1.5 mb-4">
             This is recorded and shown to the person affected.
           </p>
+
+          {withDuration && (
+            <div className="mb-5">
+              <p className="text-[11px] font-bold text-ink/45 uppercase tracking-wide mb-2">
+                How long
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {SUSPENSION_DURATIONS.map((option) => (
+                  <button
+                    key={option.days}
+                    type="button"
+                    onClick={() => setDays(option.days)}
+                    disabled={loading}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                      days === option.days
+                        ? 'bg-ink text-app'
+                        : 'bg-ink/5 text-ink/50 hover:text-ink'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-ink/40 mt-2">
+                {days === 0
+                  ? 'Stays suspended until you restore the account yourself.'
+                  : 'The account restores itself when this runs out.'}
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-2.5">
             <button
@@ -99,7 +151,7 @@ export default function ReasonDialog({
             </button>
             <button
               type="button"
-              onClick={() => onConfirm(reason.trim())}
+              onClick={() => onConfirm(reason.trim(), days)}
               disabled={loading || !ready}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-all active:scale-95 disabled:opacity-40 disabled:active:scale-100"
             >
