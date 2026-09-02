@@ -9,7 +9,6 @@ import {
   Phone,
   MessageSquare,
   Home,
-  Clock,
 } from 'lucide-react'
 import { assetUrl } from '../lib/config'
 import ConfirmDialog from './ConfirmDialog'
@@ -34,6 +33,9 @@ type Props = {
   /** Used to tell the viewer's own reels from everyone else's. */
   currentUserId?: string
   onOpenListing?: (listingId: string) => void
+  /** Opens the conversation with the reel's agent about the listing behind it. */
+  onMessageSeller?: (listingId: string) => void | Promise<void>
+
   /** Distinguishes "still fetching" from "nobody has posted a reel". */
   loading?: boolean
 }
@@ -45,15 +47,23 @@ export default function ReelsFeed({
   onDownload,
   currentUserId,
   onOpenListing,
+  onMessageSeller,
   loading = false,
 }: Props) {
   // Browsers refuse to autoplay audio, so every reel starts muted and the viewer
   // opts into sound. One toggle for the whole feed, so it survives scrolling.
   const [muted, setMuted] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [soonFor, setSoonFor] = useState<string | null>(null)
   /** The reel whose seller is about to be called, held so the dialog can name them. */
   const [calling, setCalling] = useState<FeedReel | null>(null)
+  /**
+   * The reel whose thread is being opened.
+   *
+   * Opening one is a round trip to the API, and on a cold free instance that can take
+   * the better part of a minute. Without this the button simply looks dead, and the
+   * natural response is to tap it again.
+   */
+  const [openingChat, setOpeningChat] = useState<string | null>(null)
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -224,22 +234,43 @@ export default function ReelsFeed({
                       {phone ? 'Call' : 'No number'}
                     </button>
 
+                    {/* Opens the real thread with this agent about this property.
+                        Disabled only for a reel built from loose photos rather than a
+                        listing: a conversation is keyed to a listing, so there is
+                        nothing for it to be about. */}
                     <button
                       type="button"
-                      onClick={() => setSoonFor((s) => (s === reel.id ? null : reel.id))}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/25 text-sm font-bold text-white/80 hover:bg-white/10 transition-all"
+                      onClick={async () => {
+                        if (!reel.listingId || !onMessageSeller) return
+                        setOpeningChat(reel.id)
+                        try {
+                          await onMessageSeller(reel.listingId)
+                        } finally {
+                          setOpeningChat(null)
+                        }
+                      }}
+                      disabled={
+                        !reel.listingId || !onMessageSeller || openingChat === reel.id
+                      }
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                        reel.listingId && onMessageSeller
+                          ? 'border-white/25 text-white/80 hover:bg-white/10 active:scale-95 disabled:active:scale-100'
+                          : 'border-white/10 text-white/30 cursor-not-allowed'
+                      }`}
                     >
-                      <MessageSquare size={15} />
-                      Message
+                      {openingChat === reel.id ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+                          Opening…
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare size={15} />
+                          Message
+                        </>
+                      )}
                     </button>
                   </div>
-                )}
-
-                {soonFor === reel.id && (
-                  <p className="flex items-start gap-1.5 mt-2 px-3 py-2 rounded-lg bg-white/10 text-[11px] text-white/75">
-                    <Clock size={12} className="shrink-0 mt-0.5 text-gold" />
-                    In-app messaging is still being built. Call for now.
-                  </p>
                 )}
 
                 {reel.listingId && onOpenListing && (

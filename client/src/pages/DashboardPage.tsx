@@ -760,6 +760,7 @@ export default function DashboardPage() {
                   onDownload={handleDownloadReel}
                   currentUserId={user?.id}
                   onOpenListing={(id) => navigate(`/dashboard/property/${id}`)}
+                  onMessageSeller={handleMessageSeller}
                 />
               ) : reels.length === 0 ? (
                 <EmptyState
