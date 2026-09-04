@@ -25,6 +25,10 @@ import {
 } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
 import Testimonials from '../components/Testimonials'
+import Reveal from '../components/Reveal'
+import CountUp from '../components/CountUp'
+import HeroDemo from '../components/HeroDemo'
+import TemplateShowcase from '../components/TemplateShowcase'
 import { useTheme } from '../context/ThemeContext'
 
 /**
@@ -241,11 +245,15 @@ export default function LandingPage() {
                     <div className="text-xs text-content/50 font-semibold mt-1">Reels-ready vertical</div>
                   </div>
                   <div>
-                    <div className="font-heading text-base sm:text-2xl font-black text-gold">~60 sec</div>
+                    <div className="font-heading text-base sm:text-2xl font-black text-gold">
+                      <CountUp to={60} prefix="~" suffix=" sec" />
+                    </div>
                     <div className="text-xs text-content/50 font-semibold mt-1">To render a reel</div>
                   </div>
                   <div>
-                    <div className="font-heading text-base sm:text-2xl font-black">360°</div>
+                    <div className="font-heading text-base sm:text-2xl font-black">
+                      <CountUp to={360} suffix="°" />
+                    </div>
                     <div className="text-xs text-content/50 font-semibold mt-1">Virtual tours</div>
                   </div>
                 </div>
@@ -330,6 +338,33 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* --------------------------------------------------------- live demo */}
+        {/* Sits between the promise and the explanation. The hero shows a finished
+            reel, the steps below describe the process — this is the part in the
+            middle that neither of them shows: the listing becoming the copy. */}
+        <section className="relative py-20 lg:py-24 border-t border-line/10">
+          <div className="max-w-5xl mx-auto px-6 lg:px-8">
+            <Reveal>
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
+                  Watch it happen
+                </span>
+                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                  You fill in the property. Reelink writes the rest.
+                </h2>
+                <p className="mt-4 text-content/50 text-sm leading-relaxed">
+                  The caption, the hook and the video come from the details you already
+                  have — no blank page, no editing timeline.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={120}>
+              <HeroDemo />
+            </Reveal>
+          </div>
+        </section>
+
         {/* ----------------------------------------------------- how it works */}
         <section
           id="how-it-works"
@@ -337,30 +372,36 @@ export default function LandingPage() {
         >
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <div className="h-px w-40 gold-rule mb-12" />
-            <div className="max-w-2xl mb-14">
-              <span className="text-xs font-extrabold tracking-widest uppercase text-gold">How it works</span>
-              <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
-                Four steps from photos to a finished reel.
-              </h2>
-            </div>
+            <Reveal>
+              <div className="max-w-2xl mb-14">
+                <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
+                  How it works
+                </span>
+                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                  Four steps from photos to a finished reel.
+                </h2>
+              </div>
+            </Reveal>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {STEPS.map((step, i) => {
                 const Icon = step.icon
+                // Staggered by index, so the row assembles rather than arriving at once.
                 return (
-                  <div
-                    key={step.title}
-                    className="relative p-6 rounded-2xl bg-panel/70 backdrop-blur-sm border border-line/10 shadow-xl shadow-black/10 hover:border-gold/40 hover:-translate-y-1 transition-all group"
-                  >
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="w-11 h-11 rounded-xl bg-gold/15 border border-gold/25 flex items-center justify-center text-gold-dark group-hover:bg-gold group-hover:text-navy-dark transition-all">
-                        <Icon size={20} />
+                  <Reveal key={step.title} delay={i * 90} className="h-full">
+                    <div className="relative h-full p-6 rounded-2xl bg-panel/70 backdrop-blur-sm border border-line/10 shadow-xl shadow-black/10 hover:border-gold/40 hover:-translate-y-1 transition-all group">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="w-11 h-11 rounded-xl bg-gold/15 border border-gold/25 flex items-center justify-center text-gold-dark group-hover:bg-gold group-hover:text-navy-dark transition-all">
+                          <Icon size={20} />
+                        </div>
+                        <span className="font-heading text-3xl font-black text-content/10">
+                          0{i + 1}
+                        </span>
                       </div>
-                      <span className="font-heading text-3xl font-black text-content/10">0{i + 1}</span>
+                      <h3 className="font-heading font-bold text-base">{step.title}</h3>
+                      <p className="mt-2 text-sm text-content/50 leading-relaxed">{step.body}</p>
                     </div>
-                    <h3 className="font-heading font-bold text-base">{step.title}</h3>
-                    <p className="mt-2 text-sm text-content/50 leading-relaxed">{step.body}</p>
-                  </div>
+                  </Reveal>
                 )
               })}
             </div>
@@ -458,6 +499,32 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* --------------------------------------------------------- templates */}
+        {/* Real renders of each template, from public/templates — the same property
+            through four styles, which is the comparison an agent actually makes. */}
+        <section className="relative py-20 lg:py-28 border-t border-line/10">
+          <div className="max-w-6xl mx-auto px-6 lg:px-8">
+            <Reveal>
+              <div className="max-w-2xl mb-12">
+                <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
+                  Four templates
+                </span>
+                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                  Same property. Pick the style that fits it.
+                </h2>
+                <p className="mt-4 text-content/50 text-sm leading-relaxed">
+                  A ₱2M starter unit and a ₱40M house should not look identical. Switch
+                  between them and watch the same listing change character.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={120}>
+              <TemplateShowcase />
+            </Reveal>
           </div>
         </section>
 
