@@ -41,7 +41,20 @@ const TEMPLATES = [
 /** What the end card adds on top of the per-photo time, matching the renderer. */
 const END_CARD_SECONDS = 1.8
 
-export default function TemplateShowcase() {
+export default function TemplateShowcase({
+  heading,
+}: {
+  /**
+   * The section's own title, rendered at the top of the left column.
+   *
+   * It belongs inside the component rather than above it because of how the columns
+   * balance. The phone is around 480px tall and the picker alone barely 300, so
+   * centring the two left the heading stranded above an empty band and pushed the
+   * controls into the middle of the page. Folded into the same column, the sides are
+   * comparable heights and the block centres as one.
+   */
+  heading?: React.ReactNode
+}) {
   const [active, setActive] = useState(0)
   const [muted, setMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -58,9 +71,11 @@ export default function TemplateShowcase() {
   }, [active])
 
   return (
-    <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+    <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
       <div>
-        <div className="flex flex-wrap gap-2 mb-7">
+        {heading}
+
+        <div className="flex flex-wrap gap-2 mb-6">
           {TEMPLATES.map((t, i) => (
             <button
               key={t.id}
@@ -77,14 +92,14 @@ export default function TemplateShowcase() {
           ))}
         </div>
 
-        <h3 className="font-heading text-2xl sm:text-3xl font-black tracking-tight">
+        <h3 className="font-heading text-xl sm:text-2xl font-black tracking-tight">
           {template.name}
         </h3>
-        <p className="mt-3 text-sm text-content/55 leading-relaxed max-w-md">
+        <p className="mt-2.5 text-sm text-content/55 leading-relaxed max-w-md">
           {template.description}
         </p>
 
-        <div className="flex gap-8 mt-7 pt-6 border-t border-line/10">
+        <div className="flex gap-8 mt-6 pt-5 border-t border-line/10">
           <div>
             <div className="font-heading text-2xl font-black text-gold">{template.seconds}s</div>
             <div className="text-[11px] text-content/45 font-semibold mt-1">Per photo</div>
@@ -99,16 +114,18 @@ export default function TemplateShowcase() {
           </div>
         </div>
 
-        <p className="text-[11px] text-content/35 mt-6 leading-relaxed max-w-md">
+        <p className="text-[11px] text-content/35 mt-5 leading-relaxed max-w-md">
           Every template renders at 1080×1920 with captions burned in, so it is ready to
           post without editing.
         </p>
       </div>
 
       {/* One frame that restyles, rather than four videos swapping places — the point
-          is that it is the same property each time. */}
-      <div className="flex justify-center">
-        <div className="relative w-[250px] sm:w-[270px] aspect-[9/16] rounded-[1.75rem] bg-black border-[5px] border-line/15 shadow-2xl shadow-black/40 overflow-hidden">
+          is that it is the same property each time.
+          Sized so the whole phone fits a laptop viewport alongside the text; at 270px
+          the 9:16 frame ran past the fold and the section could not be seen at once. */}
+      <div className="flex justify-center lg:justify-end">
+        <div className="relative w-[220px] sm:w-[240px] aspect-[9/16] rounded-[1.75rem] bg-black border-[5px] border-line/15 shadow-2xl shadow-black/40 overflow-hidden">
           <video
             ref={videoRef}
             key={template.id}

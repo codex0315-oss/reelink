@@ -505,25 +505,29 @@ export default function LandingPage() {
         {/* --------------------------------------------------------- templates */}
         {/* Real renders of each template, from public/templates — the same property
             through four styles, which is the comparison an agent actually makes. */}
-        <section className="relative py-20 lg:py-28 border-t border-line/10">
+        <section className="relative py-20 lg:py-24 border-t border-line/10">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
+            {/* The heading is passed in rather than stacked above, so it shares a
+                column with the picker and the two halves balance against the phone. */}
             <Reveal>
-              <div className="max-w-2xl mb-12">
-                <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
-                  Four templates
-                </span>
-                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
-                  Same property. Pick the style that fits it.
-                </h2>
-                <p className="mt-4 text-content/50 text-sm leading-relaxed">
-                  A ₱2M starter unit and a ₱40M house should not look identical. Switch
-                  between them and watch the same listing change character.
-                </p>
-              </div>
-            </Reveal>
-
-            <Reveal delay={120}>
-              <TemplateShowcase />
+              <TemplateShowcase
+                heading={
+                  <div className="mb-8">
+                    <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
+                      Four templates
+                    </span>
+                    <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                      Same property.
+                      <br />
+                      Pick the style that fits it.
+                    </h2>
+                    <p className="mt-4 text-content/50 text-sm leading-relaxed max-w-md">
+                      A ₱2M starter unit and a ₱40M house should not look identical.
+                      Switch between them and watch the same listing change character.
+                    </p>
+                  </div>
+                }
+              />
             </Reveal>
           </div>
         </section>
