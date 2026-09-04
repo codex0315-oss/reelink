@@ -504,9 +504,10 @@ function NotificationsSection({
       // Spells out exactly what goes out in their name, because it goes out in their
       // name. An agent should never discover after the fact what was said for them.
       body:
-        'Buyers who message while you are away get an immediate reply with the ' +
-        'listing details, clearly marked as automatic. It never answers questions ' +
-        'or makes commitments on your behalf.',
+        'Buyers who message while you are away get answered for you, using only ' +
+        'the details on your listing. The first reply says it is automatic and that ' +
+        'you will follow up. It never confirms availability, discusses price or ' +
+        'commits you to anything.',
     },
   ]
 

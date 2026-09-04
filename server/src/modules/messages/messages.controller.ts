@@ -103,7 +103,6 @@ export class MessagesController {
       .maybeReply({
         conversationId: id,
         recipientId,
-        senderId,
         triggeredByAutomated: message.isAutomated,
       })
       .then((reply) => {
