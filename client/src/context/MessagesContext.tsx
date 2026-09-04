@@ -152,7 +152,32 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       setActiveId(id)
       if (!token) return
       fetchConversation(token, id)
-        .then((data) => setMessages(data.messages ?? []))
+        .then((data) => {
+          setMessages(data.messages ?? [])
+
+          // Add it to the inbox if it is not there yet.
+          //
+          // The list is fetched once when the session starts, so a conversation
+          // created after that — which is every conversation started from a property
+          // page — was missing from it. Opening the thread loaded its messages but
+          // left the list empty, and the inbox rendered "No conversations yet" over
+          // the thread the user had just opened. A new account hit this on their
+          // first ever message, which is the worst possible moment for it.
+          //
+          // The response is the same decorated shape the list uses, so it can simply
+          // be inserted rather than triggering a second round trip.
+          setConversations((prev) => {
+            if (prev.some((c) => c.id === id)) return prev
+            const { messages: threadMessages, ...conversation } = data
+            const entry = {
+              ...conversation,
+              lastMessage: threadMessages?.[threadMessages.length - 1] ?? null,
+              unreadCount: 0,
+            } as Conversation
+            // Newest first, matching the order the server sends.
+            return [entry, ...prev]
+          })
+        })
         .catch(() => setMessages([]))
 
       setConversations((prev) =>

@@ -116,7 +116,10 @@ export default function MessagesView({
     return <p className="text-sm text-ink/40 py-16 text-center">Loading conversations…</p>
   }
 
-  if (conversations.length === 0) {
+  // A thread being opened is not an empty inbox. Arriving from a property page sets
+  // the active thread before its details have loaded, and without this the screen said
+  // "No conversations yet" over the conversation the user had just started.
+  if (conversations.length === 0 && !openConversationId && !activeId) {
     return (
       <div className="text-center py-20 max-w-md mx-auto">
         <div className="w-14 h-14 rounded-2xl bg-gold/10 border border-gold/20 mx-auto mb-5 flex items-center justify-center">
