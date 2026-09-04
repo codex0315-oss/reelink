@@ -4,6 +4,7 @@ import { MessagesService } from './messages.service';
 import { MessagesGateway } from './messages.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OfflineNotifierService } from './offline-notifier.service';
+import { AutoReplyService } from './auto-reply.service';
 
 type AuthedRequest = { user: { userId: string } };
 
@@ -15,6 +16,7 @@ export class MessagesController {
     private gateway: MessagesGateway,
     private notifications: NotificationsService,
     private offlineNotifier: OfflineNotifierService,
+    private autoReply: AutoReplyService,
   ) {}
 
   @Get()
@@ -94,6 +96,32 @@ export class MessagesController {
         content: message.content,
       })
       .catch((err) => console.error('Could not send offline message email', err));
+
+    // A holding reply, when the agent is away. Detached like everything else here: the
+    // buyer's message is already saved and must not depend on this.
+    void this.autoReply
+      .maybeReply({
+        conversationId: id,
+        recipientId,
+        senderId,
+        triggeredByAutomated: message.isAutomated,
+      })
+      .then((reply) => {
+        if (!reply) return;
+
+        // Pushed to the buyer, who is the one waiting, and to the agent's own session
+        // in case they are signed in elsewhere — they should see what was said in
+        // their name without having to go looking for it.
+        for (const audience of [senderId, recipientId]) {
+          this.gateway.sendToUser(audience, 'message', {
+            conversationId: id,
+            message: { ...reply, conversationId: id, senderId: recipientId, isAutomated: true },
+            from: conversation.seller,
+            listing: conversation.listing,
+          });
+        }
+      })
+      .catch((err) => console.error('Could not send auto-reply', err));
 
     return message;
   }

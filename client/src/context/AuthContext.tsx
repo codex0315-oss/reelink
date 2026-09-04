@@ -23,6 +23,8 @@ export type User = {
   notifyNewReels: boolean
   notifyMyActivity: boolean
   notifyEmailMessages: boolean
+  /** Whether buyers get a holding reply while this agent is offline. */
+  autoReplyEnabled: boolean
   createdAt?: string
 }
 

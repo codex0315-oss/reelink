@@ -8,6 +8,7 @@ import {
   CheckCheck,
   PanelRight,
   Trash2,
+  Bot,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useMessages, type Participant } from '../context/MessagesContext'
@@ -306,11 +307,26 @@ export default function MessagesView({
                         ))}
 
                       <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'}`}>
+                      {/* Above the bubble, not inside it, so it is read before the words
+                          rather than found after them. The message carries the agent's
+                          name and face, which is exactly why this has to be plain. */}
+                      {m.isAutomated && (
+                        <div
+                          className={`flex items-center gap-1 mb-1 ${mine ? 'justify-end' : ''}`}
+                        >
+                          <Bot size={11} className="text-gold-dark" />
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-gold-dark">
+                            Automatic reply
+                          </span>
+                        </div>
+                      )}
                       <div
                         className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                          mine
-                            ? 'bg-ink text-app rounded-br-sm'
-                            : 'bg-ink/5 text-ink rounded-bl-sm'
+                          m.isAutomated
+                            ? 'bg-gold/10 text-ink border border-gold/25 rounded-bl-sm'
+                            : mine
+                              ? 'bg-ink text-app rounded-br-sm'
+                              : 'bg-ink/5 text-ink rounded-bl-sm'
                         }`}
                       >
                         {m.content}

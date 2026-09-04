@@ -59,6 +59,13 @@ model User {
   /// switches above because it leaves the app and lands in someone inbox.
   notifyEmailMessages Boolean @default(true)
 
+  /// Send a holding reply to buyers who message while I am offline.
+  ///
+  /// On by default: a buyer who hears nothing for a night usually goes elsewhere, and
+  /// an agent who does not want it can switch it off in Settings. Only ever states
+  /// facts already on the listing, and is labelled as automatic wherever it appears.
+  autoReplyEnabled Boolean @default(true)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -443,6 +450,15 @@ model Message {
   deliveredAt    DateTime?
   /// Null until the other party opens the thread; drives the unread count and ticks.
   readAt         DateTime?
+
+  /// Written by the auto-responder rather than typed by the agent.
+  ///
+  /// senderId is still the agent, because the thread has exactly two participants and
+  /// inventing a third would complicate every query that reads it. This flag is what
+  /// stops that being a lie: the client marks these visibly, and the text says so too.
+  /// It also keeps the responder from answering itself — an automated message never
+  /// triggers another one.
+  isAutomated    Boolean      @default(false)
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

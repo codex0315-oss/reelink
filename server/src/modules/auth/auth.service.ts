@@ -98,6 +98,7 @@ export class AuthService {
     notifyNewReels: true,
     notifyMyActivity: true,
     notifyEmailMessages: true,
+    autoReplyEnabled: true,
     createdAt: true,
   } as const;
 
@@ -183,6 +184,7 @@ export class AuthService {
       notifyNewReels?: boolean;
       notifyMyActivity?: boolean;
       notifyEmailMessages?: boolean;
+      autoReplyEnabled?: boolean;
     },
   ) {
     return this.prisma.user.update({

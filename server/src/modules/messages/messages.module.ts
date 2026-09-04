@@ -5,6 +5,7 @@ import { MessagesService } from './messages.service';
 import { MessagesGateway } from './messages.gateway';
 import { PresenceService } from './presence.service';
 import { OfflineNotifierService } from './offline-notifier.service';
+import { AutoReplyService } from './auto-reply.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -15,7 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  providers: [MessagesGateway, MessagesService, PresenceService, OfflineNotifierService],
+  providers: [MessagesGateway, MessagesService, PresenceService, OfflineNotifierService, AutoReplyService],
   controllers: [MessagesController],
   exports: [MessagesService, PresenceService],
 })

@@ -498,6 +498,16 @@ function NotificationsSection({
       body: 'Only when someone messages you while you are offline.',
       email: true,
     },
+    {
+      key: 'autoReplyEnabled' as const,
+      title: 'Auto-reply when I am offline',
+      // Spells out exactly what goes out in their name, because it goes out in their
+      // name. An agent should never discover after the fact what was said for them.
+      body:
+        'Buyers who message while you are away get an immediate reply with the ' +
+        'listing details, clearly marked as automatic. It never answers questions ' +
+        'or makes commitments on your behalf.',
+    },
   ]
 
   return (

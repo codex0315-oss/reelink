@@ -35,6 +35,12 @@ export type ChatMessage = {
   createdAt: string
   deliveredAt?: string | null
   readAt?: string | null
+  /**
+   * Written by the auto-responder rather than by the agent, though it carries their id.
+   * The thread marks these, because a buyer must never believe the agent personally
+   * told them something a template did.
+   */
+  isAutomated?: boolean
 }
 
 export type Conversation = {
