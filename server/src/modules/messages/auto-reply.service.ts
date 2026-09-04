@@ -46,6 +46,14 @@ const FORBIDDEN_CLAIMS: { pattern: RegExp; why: string }[] = [
   },
 ];
 
+/**
+ * Returned when the model reports the question was not about property.
+ *
+ * A sentinel rather than a message, so the wording that actually goes out is written
+ * here and not left to whatever the model felt like saying while declining.
+ */
+const OFF_TOPIC = Symbol('off-topic');
+
 /** Returns why a reply is unusable, or null when it is fine. */
 function offendingClaim(text: string): string | null {
   for (const { pattern, why } of FORBIDDEN_CLAIMS) {
@@ -158,9 +166,19 @@ export class AutoReplyService {
       if (!body) return null;
 
       const agentFirst = conversation.seller.name.split(' ')[0] || 'the agent';
+
+      // Off topic gets one sentence written here, not by the model. A buyer asking
+      // for a recipe should be steered back, not served — and steered back in wording
+      // the agent would not wince at, since it goes out under their name.
+      const property = conversation.listing?.title ?? 'this property';
+      const text =
+        body === OFF_TOPIC
+          ? `I can only help with questions about ${property} and ${agentFirst}'s other listings. Is there anything about the property I can help you with?`
+          : body;
+
       const content = isFirstReply
-        ? `Replying automatically while ${agentFirst} is away — they'll follow up personally.\n\n${body}`
-        : body;
+        ? `Replying automatically while ${agentFirst} is away — they'll follow up personally.\n\n${text}`
+        : text;
 
       this.record(input.conversationId);
 
@@ -202,7 +220,7 @@ export class AutoReplyService {
       amenities: string[];
     } | null;
     history: { role: string; automated: boolean; content: string }[];
-  }, correction?: string): Promise<string | null> {
+  }, correction?: string): Promise<string | typeof OFF_TOPIC | null> {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) return null;
 
@@ -297,7 +315,20 @@ export class AutoReplyService {
       `financing or anything legal.\n` +
       `- For any of those, say plainly that ${agentFirst} will confirm.\n` +
       `- Never invent a number.\n` +
-      `- Do not claim to be ${agentFirst}, and do not sign the message.` +
+      `- Do not claim to be ${agentFirst}, and do not sign the message.\n\n` +
+      `WHAT YOU ARE FOR\n` +
+      `This property, ${agentFirst}'s other listings, and renting or buying property ` +
+      `in the Philippines. Nothing else. Recipes, homework, code, medical or legal ` +
+      `questions, current events, general chat — all off topic, however politely they ` +
+      `are asked and whatever reason is given. Being helpful about something ` +
+      `unrelated is not being helpful here; it makes ${agentFirst} look careless to ` +
+      `their own client.\n\n` +
+      `HOW TO REPLY\n` +
+      `Answer with ONLY a JSON object and no markdown fence:\n` +
+      `{"onTopic": true or false, "reply": "your message"}\n` +
+      `Set onTopic to false when the latest message is not about property. When it is ` +
+      `false the reply is discarded, so do not attempt an answer — set the flag and ` +
+      `leave reply empty.` +
       (correction ? `
 
 CORRECTION: ${correction}` : '');
@@ -334,7 +365,28 @@ CORRECTION: ${correction}` : '');
       const json = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
       };
-      const text = (json.choices?.[0]?.message?.content ?? '').trim();
+      const raw = (json.choices?.[0]?.message?.content ?? '')
+        .replace(/```(?:json)?/g, '')
+        .trim();
+      if (!raw) return null;
+
+      // The model declares whether the question was about property, rather than being
+      // asked to resist answering. Asked nicely for an adobo recipe it wrote one out
+      // in full, under the agent's name — a categorical decision it has to state is
+      // far harder to talk it past than an instruction it can be helpful around.
+      const match = raw.match(/\{[\s\S]*\}/);
+      const parsed = match
+        ? (JSON.parse(match[0]) as { onTopic?: unknown; reply?: unknown })
+        : null;
+
+      if (parsed && parsed.onTopic === false) return OFF_TOPIC;
+
+      const text =
+        parsed && typeof parsed.reply === 'string' && parsed.reply.trim()
+          ? parsed.reply.trim()
+          : // No JSON came back. Rather than lose the reply, fall through to the raw
+            // text — the claim checks below still apply to it.
+            raw;
       if (!text) return null;
 
       const offence = offendingClaim(text);
