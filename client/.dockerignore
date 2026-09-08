@@ -1,0 +1,17 @@
+# Excluded from the build context. node_modules and dist are both produced inside the
+# image; a copy from a developer's machine would be copied straight over them.
+node_modules
+dist
+
+# Vite inlines VITE_* at build time. The real value arrives as a build argument from
+# Coolify, and a local .env sitting in the context would quietly win instead — pointing
+# the production bundle at localhost.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store

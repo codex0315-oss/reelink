@@ -1,0 +1,41 @@
+# Excluded from the build context Docker receives.
+#
+# node_modules and dist are the entries that matter. `npm ci` in the builder stage
+# installs Linux binaries — bcrypt, and Prisma's query engine — and the `COPY . .`
+# that follows would overwrite them with whatever a developer's macOS install left
+# behind. The container then dies on boot with "invalid ELF header", which reads like
+# a Docker problem and is not one.
+node_modules
+dist
+build
+
+# Carries JWT_SECRET and the Groq, Brevo and Higgsfield keys. Coolify injects the real
+# values as environment variables; a copy baked into the image would sit in a layer
+# that anyone able to pull it can read.
+.env
+.env.*
+!.env.example
+
+# Not needed to build or to run.
+.git
+.gitignore
+coverage
+.nyc_output
+test
+
+# Editor and agent configuration.
+.vscode
+.idea
+.DS_Store
+.claude
+.agents
+.windsurf
+
+# A one-off maintenance script, run by hand against a database. Not part of the app.
+cleanup-test-data.js
+
+# User content, written at runtime and kept in a persistent volume. Music is the one
+# exception: resolveMusic() reads those files off disk while rendering, so a track
+# committed to the repo has to reach the image.
+uploads/**
+!uploads/music/**
