@@ -13,7 +13,13 @@ WORKDIR /app
 # Copied before the source so Docker can cache this layer: npm ci re-runs only when the
 # lockfile actually changes, not on every code edit.
 COPY package.json package-lock.json ./
-RUN npm ci
+# --include=dev is required, not optional. Coolify injects every environment
+# variable into the build, NODE_ENV=production among them, and npm reads that as
+# permission to skip devDependencies -- where @nestjs/cli, typescript and ts-loader
+# all live. Without this flag the build gets 452 packages fewer than a local install
+# and dies on `nest: not found`, exit 127. render.yaml carries the same note for the
+# same reason.
+RUN npm ci --include=dev
 
 # The Nest build imports the generated Prisma client, so generate has to come first.
 # DATABASE_URL is set to a throwaway value for this one command: prisma.config.ts reads
@@ -33,9 +39,11 @@ FROM node:22-bookworm-slim AS runner
 # downloads the browser itself, but not these — without them it exits immediately and
 # every reel render fails while the rest of the API looks perfectly healthy.
 #
-# The library list is Remotion's own, from their Docker guide. The font packages are
-# not: this base image ships with no fonts at all, so without them every caption burned
-# into a rendered reel comes out as empty boxes.
+# The library list is Remotion's own, from their Docker guide. The rest are not: this
+# base image ships with no fonts at all, so without them every caption burned into a
+# rendered reel comes out as empty boxes -- and Prisma's schema engine, which runs
+# `migrate deploy` on every boot, warns that it cannot detect a libssl version and
+# falls back to guessing openssl-1.1.x. Installing openssl removes the guess.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libnss3 \
       libdbus-1-3 \
@@ -54,6 +62,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-liberation \
       fonts-noto-color-emoji \
       fontconfig \
+      openssl \
+      ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
