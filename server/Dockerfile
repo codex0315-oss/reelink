@@ -44,6 +44,11 @@ FROM node:22-bookworm-slim AS runner
 # rendered reel comes out as empty boxes -- and Prisma's schema engine, which runs
 # `migrate deploy` on every boot, warns that it cannot detect a libssl version and
 # falls back to guessing openssl-1.1.x. Installing openssl removes the guess.
+#
+# curl is here for the platform, not the app. Coolify runs its healthcheck from
+# inside the container -- `curl http://localhost:3000/listings` -- and this image
+# carries neither curl nor wget, so the check exits 1 and a container that booted
+# perfectly is declared unhealthy and rolled back.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libnss3 \
       libdbus-1-3 \
@@ -64,6 +69,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fontconfig \
       openssl \
       ca-certificates \
+      curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
