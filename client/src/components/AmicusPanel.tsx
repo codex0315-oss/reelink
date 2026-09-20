@@ -162,19 +162,31 @@ export default function AmicusPanel({
 
   return (
     <>
-      {/* No backdrop by design: the page stays scrollable and clickable with the chat
-          open, which is the point of docking it rather than covering the screen. */}
+      {/* No backdrop on a desktop by design: the page stays scrollable and clickable
+          with the chat docked in the corner, which is the point of docking it. On a
+          phone the sheet covers the page anyway, so the strip left above it is dimmed
+          the same way the listing and reel sheets dim theirs. */}
       {open && !minimized && (
         <div
-          // 100svh, not 100vh or 100dvh. All three differ only on mobile: vh and dvh can
-          // both be the *tall* viewport — the height with the browser toolbar retracted —
-          // so a box sized to them runs underneath the toolbar, taking the composer at
-          // the bottom of this column with it. svh is the height with chrome at its
-          // largest, so the composer is reachable whether the toolbar is up or not.
-          // This panel also stops the page scrolling while open, which is what keeps the
-          // toolbar shown, so svh is the honest measurement here rather than a shortfall.
+          className="sm:hidden fixed inset-0 z-40 bg-navy-dark/40 backdrop-blur-sm"
+          aria-hidden
+        />
+      )}
+      {open && !minimized && (
+        <div
+          // On a phone: a bottom sheet, the same shape as the listing and reel modals.
+          // 94svh anchored to the bottom rather than 100svh from the top, so the header
+          // sits clear of the status bar and notch instead of pressed against the very
+          // top edge — and so opening it looks like opening anything else here.
+          //
+          // svh, not vh or dvh. Both of those can be the *tall* viewport — the height
+          // with the browser toolbar retracted — so a box sized to them runs underneath
+          // the toolbar, taking the composer at the bottom with it. svh is the height
+          // with chrome at its largest, so the composer is reachable either way. This
+          // panel also stops the page scrolling while open, which is what keeps the
+          // toolbar shown, so svh is the honest measurement rather than a shortfall.
           className={`fixed z-50 flex flex-col bg-card shadow-2xl border-ink/10 amicus-window
-            inset-x-0 top-0 h-[100svh]
+            inset-x-0 bottom-0 h-[94svh] rounded-t-2xl
             sm:inset-auto sm:h-[640px] sm:bottom-6 sm:right-6 sm:w-[420px]
             sm:max-h-[calc(100dvh-3rem)] sm:border sm:rounded-2xl ${
               exiting ? 'amicus-out' : 'amicus-in'

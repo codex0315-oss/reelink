@@ -223,11 +223,23 @@ export default function CreateListingModal({ onClose, onCreated, editListing }: 
   return (
     <div className="fixed inset-0 bg-navy-dark/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       {/* Wider and taller than the usual modal on purpose: the whole form is meant to
-          be visible at once on a laptop, so nothing needs scrolling to reach. */}
-      <div className="bg-card rounded-t-2xl sm:rounded-2xl w-full max-w-7xl max-h-[94vh] sm:max-h-[95vh] flex flex-col">
+          be visible at once on a laptop, so nothing needs scrolling to reach.
+
+          svh, not vh, for the height. On a phone `100vh` is the screen with the browser
+          chrome hidden, so a sheet sized in vh is taller than what is actually visible —
+          and because it is pinned to the bottom, the part that overflows is the top: the
+          title bar, and the close button with it. svh is the height with the chrome
+          showing, which is the smallest the viewport gets, so the top always fits. */}
+      <div className="bg-card rounded-t-2xl sm:rounded-2xl w-full max-w-7xl max-h-[94svh] sm:max-h-[95vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink/10">
           <h2 className="font-bold text-ink text-lg">{isEditing ? 'Edit Listing' : 'Create Listing'}</h2>
-          <button onClick={onClose} className="text-ink/40 hover:text-ink">
+          {/* Padded out to a thumb-sized target; the negative margin keeps the icon
+              where it was so the header does not grow. */}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-2 -m-2 rounded-lg text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
