@@ -144,7 +144,9 @@ export default function CreateReelModal({ token, listings, onClose, onCreated }:
 
   return (
     <div className="fixed inset-0 bg-navy-dark/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
-      <div className="bg-card rounded-t-2xl sm:rounded-2xl w-full max-w-5xl max-h-[94vh] sm:max-h-[95vh] flex flex-col">
+      {/* svh rather than vh on phones — see CreateListingModal for why a vh-sized
+          sheet pushes its own title bar and close button off the top of the screen. */}
+      <div className="bg-card rounded-t-2xl sm:rounded-2xl w-full max-w-5xl max-h-[94svh] sm:max-h-[95vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink/10">
           <div className="flex items-center gap-2">
             {mode !== 'choose' && (listings.length > 0 || mode === 'template') && (
@@ -159,7 +161,11 @@ export default function CreateReelModal({ token, listings, onClose, onCreated }:
               {mode === 'template' && 'Choose a template'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-ink/40 hover:text-ink">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-2 -m-2 rounded-lg text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors"
+          >
             <X size={20} />
           </button>
         </div>

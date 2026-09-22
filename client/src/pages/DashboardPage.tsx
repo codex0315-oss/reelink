@@ -804,7 +804,9 @@ export default function DashboardPage() {
                   description="Create your first property listing to get started. You'll be able to generate an AI description and reel from it."
                 />
               ) : (
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                // Columns by width, not by breakpoint: as many 300px cards as fit, so a
+                // wide monitor gets five across instead of three stretched to fill.
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-5">
                   {listings.map((listing) => (
                     <ListingCard
                       key={listing.id}
