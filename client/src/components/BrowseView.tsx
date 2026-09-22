@@ -185,7 +185,7 @@ export default function BrowseView({ listings, loading }: Props) {
               <p className="text-xs text-ink/50 mt-1">Try widening your filters.</p>
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-4 pb-2">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-4 pb-2">
               {visible.map((listing) => (
                 <div
                   key={listing.id}

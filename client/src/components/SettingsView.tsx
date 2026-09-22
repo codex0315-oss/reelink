@@ -57,7 +57,10 @@ export default function SettingsView() {
   if (!user || !token) return null
 
   return (
-    <div className="max-w-6xl">
+    // No width cap. The dashboard's main column is already bounded by the sidebar,
+    // and a cap inside it only ever showed up as a gutter down the right on a wide
+    // monitor — the one thing this page was rebuilt to get rid of.
+    <div>
       <div className="mb-7">
         <h1 className="font-heading text-2xl font-black text-ink">Settings</h1>
         <p className="text-ink/50 text-sm mt-1">

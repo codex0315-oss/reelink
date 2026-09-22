@@ -140,7 +140,7 @@ export default function LandingPage() {
             : 'bg-transparent border-b border-transparent'
         }`}
       >
-        <nav className="max-w-7xl mx-auto px-6 lg:px-8 py-3">
+        <nav className="max-w-site mx-auto px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center">
               <img src={logo} alt="Reelink" className="h-7 sm:h-8 w-auto object-contain" />
@@ -200,7 +200,7 @@ export default function LandingPage() {
         {/* ------------------------------------------------------------- hero */}
         <section className="relative flex items-center lg:min-h-[calc(100vh-4rem)] pt-8 pb-16 lg:pt-6 lg:pb-20">
           <div className="pointer-events-none absolute inset-0 grid-texture grid-fade opacity-60" />
-          <div className="relative w-full max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="relative w-full max-w-site mx-auto px-6 lg:px-8">
             <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
               <div className="lg:col-span-6">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-line/5 border border-line/10 text-xs font-bold uppercase tracking-widest text-content/70 mb-5">
@@ -208,7 +208,7 @@ export default function LandingPage() {
                   AI Marketing for Philippine Real Estate
                 </div>
 
-                <h1 className="font-heading text-4xl sm:text-5xl lg:text-[3.25rem] font-black tracking-tight leading-[1.05]">
+                <h1 className="font-heading text-display font-black">
                   List it once.
                   <br />
                   <span className="bg-gradient-to-r from-gold via-gold to-gold-dark bg-clip-text text-transparent">
@@ -349,7 +349,7 @@ export default function LandingPage() {
                 <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
                   Watch it happen
                 </span>
-                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                <h2 className="font-heading text-headline font-black mt-3">
                   You fill in the property. Reelink writes the rest.
                 </h2>
                 <p className="mt-4 text-content/50 text-sm leading-relaxed">
@@ -370,14 +370,14 @@ export default function LandingPage() {
           id="how-it-works"
           className="relative py-20 lg:py-28 border-t border-line/10 bg-gradient-to-b from-panel/80 via-surface to-surface"
         >
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-site mx-auto px-6 lg:px-8">
             <div className="h-px w-40 gold-rule mb-12" />
             <Reveal>
               <div className="max-w-2xl mb-14">
                 <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
                   How it works
                 </span>
-                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                <h2 className="font-heading text-headline font-black mt-3">
                   Four steps from photos to a finished reel.
                 </h2>
               </div>
@@ -411,11 +411,11 @@ export default function LandingPage() {
         {/* -------------------------------------------------------- showcase */}
         <section id="showcase" className="relative py-20 lg:py-28 border-t border-line/10">
           <div className="ambient-glow pointer-events-none absolute top-0 right-0 w-[700px] h-[500px] bg-gold/[0.07] blur-[130px] rounded-full" />
-          <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="relative max-w-site mx-auto px-6 lg:px-8">
             <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
               <div className="lg:col-span-5">
                 <span className="text-xs font-extrabold tracking-widest uppercase text-gold">Real output</span>
-                <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                <h2 className="font-heading text-headline font-black mt-3">
                   This is not a mockup.
                 </h2>
                 <p className="mt-5 text-base text-content/60 leading-relaxed">
@@ -506,7 +506,7 @@ export default function LandingPage() {
         {/* Real renders of each template, from public/templates — the same property
             through four styles, which is the comparison an agent actually makes. */}
         <section className="relative py-20 lg:py-24 border-t border-line/10">
-          <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <div className="max-w-reading mx-auto px-6 lg:px-8">
             {/* The heading is passed in rather than stacked above, so it shares a
                 column with the picker and the two halves balance against the phone. */}
             <Reveal>
@@ -516,7 +516,7 @@ export default function LandingPage() {
                     <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
                       Four templates
                     </span>
-                    <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+                    <h2 className="font-heading text-headline font-black mt-3">
                       Same property.
                       <br />
                       Pick the style that fits it.
@@ -537,10 +537,10 @@ export default function LandingPage() {
           id="features"
           className="relative py-20 lg:py-28 border-t border-line/10 bg-gradient-to-b from-panel/70 to-surface"
         >
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-site mx-auto px-6 lg:px-8">
             <div className="max-w-2xl mb-14">
               <span className="text-xs font-extrabold tracking-widest uppercase text-gold">What you get</span>
-              <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+              <h2 className="font-heading text-headline font-black mt-3">
                 Working today — and what comes next.
               </h2>
               <p className="mt-4 text-content/50 text-sm">
@@ -643,12 +643,12 @@ export default function LandingPage() {
             somewhere a buyer can act. The page still sells to agents — they are who
             signs up — so this is framed as what *their* buyers get. */}
         <section className="py-20 lg:py-28 border-t border-line/10">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="max-w-reading mx-auto px-5 sm:px-8">
             <div className="max-w-2xl mb-14">
               <span className="text-xs font-extrabold tracking-widest uppercase text-gold">
                 For your buyers
               </span>
-              <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+              <h2 className="font-heading text-headline font-black mt-3">
                 Your listing does not stop at the video.
               </h2>
               <p className="mt-4 text-content/50 text-sm">
@@ -701,10 +701,10 @@ export default function LandingPage() {
 
         {/* ------------------------------------------------------------- faq */}
         <section id="faq" className="py-20 lg:py-28 border-t border-line/10">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-site mx-auto px-6 lg:px-8">
             <div className="text-center mb-12">
               <span className="text-xs font-extrabold tracking-widest uppercase text-gold">FAQ</span>
-              <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight mt-3">
+              <h2 className="font-heading text-headline font-black mt-3">
                 Questions agents ask us.
               </h2>
             </div>
@@ -741,13 +741,13 @@ export default function LandingPage() {
 
         {/* ------------------------------------------------------------- cta */}
         <section className="py-20 lg:py-28 border-t border-line/10">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-site mx-auto px-6 lg:px-8">
             {/* Full-width band: message left, action right */}
             <div className="relative rounded-3xl border border-gold/25 bg-gradient-to-br from-navy via-navy-dark to-navy p-10 sm:p-12 overflow-hidden">
               <div className="pointer-events-none absolute -top-24 left-1/3 w-[500px] h-[300px] bg-gold/20 blur-[110px]" />
               <div className="relative flex flex-col lg:flex-row lg:items-center gap-8 justify-between">
                 <div className="max-w-xl">
-                  <h2 className="font-heading text-3xl sm:text-4xl font-black tracking-tight text-white">
+                  <h2 className="font-heading text-headline font-black text-white">
                     Your next listing could be a reel tonight.
                   </h2>
                   <p className="mt-4 text-white/60">
@@ -776,7 +776,7 @@ export default function LandingPage() {
 
       {/* ---------------------------------------------------------------- footer */}
       <footer className="relative border-t border-line/10 bg-gradient-to-b from-panel/60 to-surface">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-14">
+        <div className="max-w-site mx-auto px-6 lg:px-8 py-14">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
             <div className="lg:col-span-2">
               <img src={logo} alt="Reelink" className="h-8 w-auto" />

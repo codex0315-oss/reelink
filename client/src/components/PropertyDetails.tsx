@@ -86,7 +86,7 @@ export default function PropertyDetails({
 
   if (loading) {
     return (
-      <div className="max-w-6xl">
+      <div>
         <BackLink onBack={onBack} />
         <div className="py-20 text-center text-sm text-ink/40">Loading property…</div>
       </div>
@@ -95,7 +95,7 @@ export default function PropertyDetails({
 
   if (error || !listing) {
     return (
-      <div className="max-w-6xl">
+      <div>
         <BackLink onBack={onBack} />
         <div className="py-20 text-center">
           <div className="w-12 h-12 rounded-xl bg-ink/5 mx-auto mb-3 flex items-center justify-center">
@@ -120,8 +120,11 @@ export default function PropertyDetails({
   const hasLocation =
     typeof listing.latitude === 'number' && typeof listing.longitude === 'number'
 
+  // Uncapped: this renders inside the dashboard column, which the sidebar already
+  // bounds, and a cap here only produced a gutter down the right on wide screens. The
+  // public /property page wraps it in its own centred frame, so it needs none of its own.
   return (
-    <div className="max-w-6xl">
+    <div>
       <BackLink onBack={onBack} />
 
       <Gallery

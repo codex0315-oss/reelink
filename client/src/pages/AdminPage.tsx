@@ -68,7 +68,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-[100dvh] bg-app">
       <header className="border-b border-ink/10 bg-card">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+        <div className="max-w-site mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
             className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-ink/50 hover:bg-ink/5"
@@ -82,7 +82,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scrollbar-hide">
+        <div className="max-w-site mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scrollbar-hide">
           {(
             [
               ['overview', 'Overview'],
@@ -111,7 +111,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-site mx-auto px-4 sm:px-6 py-6">
         {tab === 'overview' && <Overview token={token} />}
         {tab === 'activity' && <Activity token={token} />}
         {tab === 'trends' && <Trends token={token} />}

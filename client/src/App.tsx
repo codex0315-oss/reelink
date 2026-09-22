@@ -5,6 +5,9 @@ import { MessagesProvider } from './context/MessagesContext'
 import { ReelProgressProvider } from './context/ReelProgressContext'
 import AdminPage from './pages/AdminPage'
 import LandingPage from './pages/LandingPage'
+import HomePage from './pages/HomePage'
+import BrowsePage from './pages/BrowsePage'
+import PropertyPage from './pages/PropertyPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -22,7 +25,14 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      {/* Browse-first: the homepage shows properties, and the agent pitch lives at
+          /for-agents. The listing endpoints were already public — only the interface
+          was behind a login, so a shared property link led to a sign-in form rather
+          than the property. */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/browse" element={<BrowsePage />} />
+      <Route path="/property/:id" element={<PropertyPage />} />
+      <Route path="/for-agents" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       {/* Staff only. ProtectedRoute keeps signed-out visitors at the login page; the
           page itself checks the role, and every endpoint behind it checks again. */}

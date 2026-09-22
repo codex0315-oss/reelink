@@ -10,6 +10,35 @@
   --color-navy-panel: #0C1830;
   --color-gold: #F0A93B;
   --color-gold-dark: #D6901F;
+
+  /*
+   * Page widths. Two, and no others, so every page lines up with every other.
+   *
+   * `site` is the outer frame: header, footer, hero, listing shelves. 1600px rather
+   * than unlimited — a shelf of cards can run as wide as you like, but the page still
+   * needs an edge to align to. `reading` is for anything made mostly of sentences:
+   * property details, settings, forms. Lines past ~75 characters get hard to follow,
+   * which is the limit, not the monitor.
+   */
+  --container-site: 100rem;
+  --container-reading: 80rem;
+
+  /*
+   * Type that grows with the viewport rather than stepping at breakpoints.
+   *
+   * A 27" monitor used to get the same 48px headline as a laptop, in three times the
+   * space. clamp() lets the size drift with the width between a floor and a ceiling —
+   * the ceiling matters as much as the floor, or a 4K screen gets a headline the size
+   * of the screen.
+   */
+  --text-display: clamp(2rem, 1.1rem + 2.4vw, 4rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.025em;
+  --text-headline: clamp(1.75rem, 1.15rem + 1.5vw, 3rem);
+  --text-headline--line-height: 1.1;
+  --text-headline--letter-spacing: -0.02em;
+  --text-lede: clamp(0.9375rem, 0.8rem + 0.4vw, 1.25rem);
+  --text-lede--line-height: 1.6;
 }
 
 /*
